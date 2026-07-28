@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useOrderTracker } from '../hooks/useOrderTracker';
 
@@ -16,6 +16,19 @@ const STATUS_META = {
 export default function TrackerView({ onNavigate }) {
   const { activeOrderId, setActiveOrderId, t, clearCart } = useApp();
   const { order, loading, error } = useOrderTracker(activeOrderId);
+
+  const [prevPaymentStatus, setPrevPaymentStatus] = useState(null);
+  const [showVerifiedMsg, setShowVerifiedMsg] = useState(false);
+
+  useEffect(() => {
+    if (order) {
+      if (prevPaymentStatus === 'pending_verification' && order.payment_status === 'paid') {
+        setShowVerifiedMsg(true);
+        setTimeout(() => setShowVerifiedMsg(false), 3000);
+      }
+      setPrevPaymentStatus(order.payment_status);
+    }
+  }, [order, prevPaymentStatus]);
 
   const handleNewOrder = () => {
     setActiveOrderId(null);
@@ -49,6 +62,37 @@ export default function TrackerView({ onNavigate }) {
   const status = order?.status || 'pending';
   const isRejected = status === 'rejected';
   const meta = STATUS_META[status] || STATUS_META.pending;
+
+  // Render pending payment state
+  if (order?.payment_status === 'pending_verification') {
+    return (
+      <div className="app-view" style={{ textAlign: 'center', paddingTop: 60 }}>
+        <div style={{ marginBottom: 24 }}>
+          <i className="fa-solid fa-building-columns fa-beat-fade" style={{ fontSize: 48, color: 'var(--color-accent)' }}></i>
+        </div>
+        <h2 style={{ color: '#fff', marginBottom: 12 }}>Verifying Payment</h2>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, maxWidth: 280, margin: '0 auto 24px' }}>
+          Please wait while we verify your transfer with the bank. This usually takes 1-2 minutes.
+        </p>
+        <div className="loading-skeleton" style={{ width: '60%', height: 6, borderRadius: 3, margin: '0 auto' }} />
+      </div>
+    );
+  }
+
+  // Render payment success state
+  if (showVerifiedMsg) {
+    return (
+      <div className="app-view" style={{ textAlign: 'center', paddingTop: 60 }}>
+        <div style={{ marginBottom: 24 }}>
+          <i className="fa-solid fa-circle-check" style={{ fontSize: 64, color: 'var(--color-success)' }}></i>
+        </div>
+        <h2 style={{ color: 'var(--color-success)', marginBottom: 12 }}>Payment Verified!</h2>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 14 }}>
+          Your order has been sent to the kitchen.
+        </p>
+      </div>
+    );
+  }
 
   // Build timeline steps
   const timelineSteps = isRejected

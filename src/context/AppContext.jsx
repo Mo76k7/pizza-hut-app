@@ -8,8 +8,16 @@ export function AppProvider({ children }) {
   const [branch, setBranch] = useState('4 Kilo');
   const [cart, setCart] = useState([]);
   const [toast, setToast] = useState(null);
-  const [activeOrderId, setActiveOrderId] = useState(null);
+  const [activeOrderId, setActiveOrderIdState] = useState(() => localStorage.getItem('activeOrderId') || null);
 
+  const setActiveOrderId = useCallback((id) => {
+    setActiveOrderIdState(id);
+    if (id) {
+      localStorage.setItem('activeOrderId', id);
+    } else {
+      localStorage.removeItem('activeOrderId');
+    }
+  }, []);
   // Translation helper
   const t = useCallback((key) => TRANSLATIONS[lang]?.[key] ?? key, [lang]);
 

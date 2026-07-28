@@ -17,8 +17,8 @@ import { useApp } from '../context/AppContext';
  *  5. Toast       — floating overlay
  */
 export default function CustomerApp({ onRoleSwitch, currentRole }) {
-  const [currentView, setCurrentView] = useState('home');
   const { activeOrderId, t } = useApp();
+  const [currentView, setCurrentView] = useState(activeOrderId ? 'tracker' : 'home');
 
   // Utility bar state — lifted here so it renders outside view-container
   const [search, setSearch] = useState('');

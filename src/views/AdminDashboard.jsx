@@ -3,6 +3,7 @@ import AppHeader from '../components/AppHeader';
 import Toast from '../components/Toast';
 import AdminMenuPanel from '../components/AdminMenuPanel';
 import AdminReportsPanel from '../components/AdminReportsPanel';
+import AdminPaymentsPanel from '../components/AdminPaymentsPanel';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('menu'); // 'menu' or 'reports'
@@ -34,10 +35,17 @@ export default function AdminDashboard() {
           >
             <i className="fa-solid fa-chart-simple" /> Reports
           </button>
+          <button 
+            className={`admin-tab ${activeTab === 'payments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('payments')}
+          >
+            <i className="fa-solid fa-file-invoice-dollar" /> Payments
+          </button>
         </div>
 
         {activeTab === 'menu' && <AdminMenuPanel />}
         {activeTab === 'reports' && <AdminReportsPanel />}
+        {activeTab === 'payments' && <AdminPaymentsPanel />}
       </main>
 
       <Toast />
