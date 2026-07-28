@@ -18,9 +18,7 @@ export default function CartView({ onNavigate }) {
   const [tableNumber, setTableNumber] = useState('');
   const [instructions, setInstructions] = useState('');
   const [splitCount, setSplitCount] = useState(1);
-  const [selectedPayment, setSelectedPayment] = useState(null);
   const [tableError, setTableError] = useState(false);
-  const [methodError, setMethodError] = useState(false); // renamed from paymentError
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const vat = cartSubtotal * VAT_RATE;
@@ -28,15 +26,9 @@ export default function CartView({ onNavigate }) {
   const total = cartSubtotal + vat + service;
   const perPerson = splitCount > 1 ? (total / splitCount).toFixed(2) : null;
 
-  const handlePaymentSelect = useCallback((method) => {
-    setSelectedPayment(method);
-    setMethodError(false);
-  }, []);
-
   const handleSubmit = async () => {
     let valid = true;
     if (!tableNumber.trim()) { setTableError(true); valid = false; }
-    if (!selectedPayment) { setMethodError(true); valid = false; }
     if (!valid) return;
 
     setIsSubmitting(true);
@@ -56,7 +48,7 @@ export default function CartView({ onNavigate }) {
           service_fee: parseFloat(service.toFixed(2)),
           total_price: parseFloat(total.toFixed(2)),
           instructions: instructions.trim() || null,
-          payment_method: selectedPayment,
+          payment_method: null,
           split_count: splitCount,
           payment_status: 'unpaid',
         })
@@ -228,57 +220,6 @@ export default function CartView({ onNavigate }) {
             <span>{t('total')}</span>
             <span id="summary-total">Br {total.toFixed(2)}</span>
           </div>
-        </div>
-
-        {/* Payment */}
-        <div className="payment-card">
-          <div className="payment-section-title">
-            <i className="fa-solid fa-credit-card" /> {t('payment_method')} <span className="required-star">*</span>
-          </div>
-          {methodError && <div className="field-error-msg show">{t('error_payment')}</div>}
-          <div className="payment-shortcuts">
-            {[
-              { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen',    sub: '0905909090' },
-              { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns', sub: '0987878787' },
-              { id: 'chapa',    label: 'Chapa',    icon: 'fa-globe',             sub: '0989' },
-              { id: 'cash',     label: t('cash'),  icon: 'fa-money-bill',        sub: t('waiter') },
-            ].map(({ id, label, icon, sub }) => (
-              <button
-                key={id}
-                className={`payment-btn ${selectedPayment === id ? 'selected' : ''}`}
-                onClick={() => handlePaymentSelect(id)}
-                id={`pay-${id}`}
-              >
-                <i className={`fa-solid ${icon}`} />
-                {label}
-                <span style={{ fontSize: '8px', color: 'var(--color-text-muted)' }}>{sub}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Account display */}
-          {selectedPayment && selectedPayment !== 'cash' && (
-            <div className="payment-account-display show">
-              <div style={{ fontSize: 'clamp(9px,2vw,11px)', color: 'var(--color-text-muted)' }}>
-                {t('pay_to')}
-              </div>
-              <div className="account-number" id="display-account-number">
-                {PAYMENT_ACCOUNTS[selectedPayment]?.number}
-              </div>
-              <div id="display-account-name" style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                {PAYMENT_ACCOUNTS[selectedPayment]?.name}
-              </div>
-              <button
-                className="copy-account-btn"
-                onClick={() => {
-                  navigator.clipboard?.writeText(PAYMENT_ACCOUNTS[selectedPayment]?.number);
-                  showToast('Account number copied!');
-                }}
-              >
-                <i className="fa-solid fa-copy" /> {t('copy_number')}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Submit */}

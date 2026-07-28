@@ -46,17 +46,21 @@ export default function TrackerView({ onNavigate }) {
   };
 
   const handlePaymentSubmit = async () => {
-    if (!txnId.trim()) {
-      setModalError('Transaction ID is required.');
-      return;
-    }
-    if (selectedPayment === 'cbe' && !/^FT\w+/i.test(txnId.trim())) {
-      setModalError('CBE Transaction ID must start with FT');
-      return;
-    }
-    if (selectedPayment === 'telebirr' && !/^[A-Za-z0-9]+$/.test(txnId.trim())) {
-      setModalError('Telebirr Transaction ID must be alphanumeric');
-      return;
+    // For Cash or Chapa (which isn't fully integrated here), we might bypass Txn ID check
+    // but the prompt implies Telebirr/CBE are the main ones needing Txn ID.
+    if (selectedPayment === 'cbe' || selectedPayment === 'telebirr') {
+      if (!txnId.trim()) {
+        setModalError('Transaction ID is required.');
+        return;
+      }
+      if (selectedPayment === 'cbe' && !/^FT\w+/i.test(txnId.trim())) {
+        setModalError('CBE Transaction ID must start with FT');
+        return;
+      }
+      if (selectedPayment === 'telebirr' && !/^[A-Za-z0-9]+$/.test(txnId.trim())) {
+        setModalError('Telebirr Transaction ID must be alphanumeric');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -264,22 +268,54 @@ export default function TrackerView({ onNavigate }) {
             )}
           </div>
         )}
+
+        {/* Payment Selection & Action */}
+        {order?.payment_status === 'unpaid' && (
+          <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
+            <h4 style={{ color: '#fff', marginBottom: 12 }}>{t('payment_method')}</h4>
+            
+            <div className="payment-shortcuts" style={{ marginBottom: 16 }}>
+              {[
+                { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
+                { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
+                { id: 'chapa',    label: 'Chapa',    icon: 'fa-globe' },
+                { id: 'cash',     label: t('cash'),  icon: 'fa-money-bill' },
+              ].map(({ id, label, icon }) => (
+                <button
+                  key={id}
+                  className={`payment-btn ${selectedPayment === id ? 'selected' : ''}`}
+                  onClick={() => setSelectedPayment(id)}
+                  style={{ flex: '1 1 45%', padding: '10px 8px', fontSize: 12 }}
+                >
+                  <i className={`fa-solid ${icon}`} style={{ marginBottom: 4 }} />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                if (selectedPayment === 'cash') {
+                  // Instant update for cash
+                  await supabase.from('orders').update({ payment_method: 'cash' }).eq('id', order.id);
+                  // Optional: Show toast or just let them know
+                  setPaymentModal(false);
+                } else if (selectedPayment === 'chapa') {
+                  // Instant update for chapa (placeholder)
+                  await supabase.from('orders').update({ payment_method: 'chapa' }).eq('id', order.id);
+                } else {
+                  setPaymentModal(true);
+                }
+              }}
+            >
+              <i className="fa-solid fa-credit-card" /> Pay Bill / Checkout
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
-      {order?.payment_status === 'unpaid' && (
-        <button
-          className="btn-primary"
-          style={{ marginBottom: 12 }}
-          onClick={() => {
-            setSelectedPayment(order.payment_method === 'cbe' ? 'cbe' : 'telebirr');
-            setPaymentModal(true);
-          }}
-        >
-          <i className="fa-solid fa-credit-card" /> Pay Bill / Checkout
-        </button>
-      )}
-
       <button
         className="btn-secondary"
         style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'none' }}
@@ -304,25 +340,8 @@ export default function TrackerView({ onNavigate }) {
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
           }}>
             <h3 style={{ margin: 0, color: '#fff', fontSize: '20px', textAlign: 'center' }}>
-              Pay Bill
+              Pay with {selectedPayment === 'cbe' ? 'CBE Birr' : 'Telebirr'}
             </h3>
-            
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
-              <button
-                className={`payment-btn ${selectedPayment === 'telebirr' ? 'selected' : ''}`}
-                onClick={() => setSelectedPayment('telebirr')}
-                style={{ flex: 1 }}
-              >
-                <i className="fa-solid fa-mobile-screen" /> Telebirr
-              </button>
-              <button
-                className={`payment-btn ${selectedPayment === 'cbe' ? 'selected' : ''}`}
-                onClick={() => setSelectedPayment('cbe')}
-                style={{ flex: 1 }}
-              >
-                <i className="fa-solid fa-building-columns" /> CBE Birr
-              </button>
-            </div>
             
             <div style={{ textAlign: 'center', margin: '0 0 8px 0' }}>
               <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: 4 }}>Total Amount</p>
