@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useOrderTracker } from '../hooks/useOrderTracker';
+import { supabase } from '../supabaseClient';
+import { PAYMENT_ACCOUNTS } from '../utils/constants';
 
 const STATUS_STEPS = ['pending', 'accepted', 'preparing', 'ready', 'completed'];
 
@@ -20,6 +22,14 @@ export default function TrackerView({ onNavigate }) {
   const [prevPaymentStatus, setPrevPaymentStatus] = useState(null);
   const [showVerifiedMsg, setShowVerifiedMsg] = useState(false);
 
+  // Payment Modal States
+  const [paymentModal, setPaymentModal] = useState(false);
+  const [txnId, setTxnId] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [modalError, setModalError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState('telebirr');
+
   useEffect(() => {
     if (order) {
       if (prevPaymentStatus === 'pending_verification' && order.payment_status === 'paid') {
@@ -33,6 +43,63 @@ export default function TrackerView({ onNavigate }) {
   const handleNewOrder = () => {
     setActiveOrderId(null);
     onNavigate('home');
+  };
+
+  const handlePaymentSubmit = async () => {
+    if (!txnId.trim()) {
+      setModalError('Transaction ID is required.');
+      return;
+    }
+    if (selectedPayment === 'cbe' && !/^FT\w+/i.test(txnId.trim())) {
+      setModalError('CBE Transaction ID must start with FT');
+      return;
+    }
+    if (selectedPayment === 'telebirr' && !/^[A-Za-z0-9]+$/.test(txnId.trim())) {
+      setModalError('Telebirr Transaction ID must be alphanumeric');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      let receiptUrl = null;
+
+      if (receiptFile) {
+        const fileExt = receiptFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `receipts/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(filePath, receiptFile);
+          
+        if (uploadError) throw new Error('Failed to upload receipt');
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('receipts')
+          .getPublicUrl(filePath);
+        
+        receiptUrl = publicUrl;
+      }
+
+      const { error: orderErr } = await supabase
+        .from('orders')
+        .update({
+          payment_method: selectedPayment,
+          txn_id: txnId.trim(),
+          payment_status: 'pending_verification',
+          receipt_image_url: receiptUrl,
+        })
+        .eq('id', order.id);
+
+      if (orderErr) throw orderErr;
+
+      setPaymentModal(false);
+    } catch (err) {
+      console.error('[TrackerView] payment submit error:', err);
+      setModalError(err.message || 'Error submitting payment.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!activeOrderId) {
@@ -200,13 +267,144 @@ export default function TrackerView({ onNavigate }) {
       </div>
 
       {/* Actions */}
+      {order?.payment_status === 'unpaid' && (
+        <button
+          className="btn-primary"
+          style={{ marginBottom: 12 }}
+          onClick={() => {
+            setSelectedPayment(order.payment_method === 'cbe' ? 'cbe' : 'telebirr');
+            setPaymentModal(true);
+          }}
+        >
+          <i className="fa-solid fa-credit-card" /> Pay Bill / Checkout
+        </button>
+      )}
+
       <button
-        className="btn-primary"
+        className="btn-secondary"
         style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'none' }}
         onClick={handleNewOrder}
       >
         <i className="fa-solid fa-plus" /> {t('new_order')}
       </button>
+
+      {/* Payment Modal */}
+      {paymentModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 99999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{
+            margin: 'auto', width: '90%', maxWidth: '400px',
+            padding: '24px', borderRadius: '12px',
+            backgroundColor: '#181824', opacity: 1, border: '1px solid #2d2d3f',
+            zIndex: 100000,
+            display: 'flex', flexDirection: 'column', gap: '16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+          }}>
+            <h3 style={{ margin: 0, color: '#fff', fontSize: '20px', textAlign: 'center' }}>
+              Pay Bill
+            </h3>
+            
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
+              <button
+                className={`payment-btn ${selectedPayment === 'telebirr' ? 'selected' : ''}`}
+                onClick={() => setSelectedPayment('telebirr')}
+                style={{ flex: 1 }}
+              >
+                <i className="fa-solid fa-mobile-screen" /> Telebirr
+              </button>
+              <button
+                className={`payment-btn ${selectedPayment === 'cbe' ? 'selected' : ''}`}
+                onClick={() => setSelectedPayment('cbe')}
+                style={{ flex: 1 }}
+              >
+                <i className="fa-solid fa-building-columns" /> CBE Birr
+              </button>
+            </div>
+            
+            <div style={{ textAlign: 'center', margin: '0 0 8px 0' }}>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginBottom: 4 }}>Total Amount</p>
+              <p style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--color-accent)', margin: 0 }}>
+                Br {parseFloat(order.total_price).toFixed(2)}
+              </p>
+            </div>
+
+            <div style={{ backgroundColor: '#0f0f17', padding: '16px', borderRadius: '8px', border: '1px solid #3f3f5a' }}>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '12px', marginBottom: 4, textTransform: 'uppercase' }}>
+                Transfer to
+              </p>
+              <p style={{ fontSize: '18px', margin: '0 0 4px 0', color: '#fff', fontWeight: 600 }}>
+                {PAYMENT_ACCOUNTS[selectedPayment]?.number}
+              </p>
+              <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', margin: 0 }}>
+                {PAYMENT_ACCOUNTS[selectedPayment]?.name}
+              </p>
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#fff' }}>
+                Transaction Reference / Txn ID <span className="required-star">*</span>
+              </label>
+              <input 
+                type="text" 
+                placeholder={selectedPayment === 'cbe' ? "e.g. FT..." : "e.g. 7AG9B..."} 
+                value={txnId} 
+                onChange={(e) => {
+                  setTxnId(e.target.value);
+                  setModalError('');
+                }}
+                style={{ 
+                  width: '100%', backgroundColor: '#0f0f17', color: '#ffffff', 
+                  border: '1px solid #3f3f5a', padding: '12px', borderRadius: '8px', 
+                  fontSize: '16px', outline: 'none', boxSizing: 'border-box'
+                }} 
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: '#fff' }}>
+                Screenshot / Receipt (Optional)
+              </label>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={(e) => {
+                  setReceiptFile(e.target.files[0]);
+                  setModalError('');
+                }}
+                style={{ 
+                  width: '100%', color: '#ffffff', 
+                  padding: '8px 0', fontSize: '14px'
+                }} 
+              />
+            </div>
+            
+            {modalError && <div style={{ color: '#ef4444', fontSize: '13px', textAlign: 'center' }}>{modalError}</div>}
+            
+            <button 
+              className="btn-primary" 
+              onClick={handlePaymentSubmit} 
+              disabled={isSubmitting}
+              style={{ margin: '8px 0 0', width: '100%', padding: '14px', opacity: isSubmitting ? 0.7 : 1 }}
+            >
+              {isSubmitting ? <><i className="fa-solid fa-spinner fa-spin" /> Verifying...</> : 'Submit Payment'}
+            </button>
+            <button 
+              className="btn-secondary" 
+              onClick={() => {
+                setPaymentModal(false);
+                setModalError('');
+              }} 
+              disabled={isSubmitting}
+              style={{ margin: 0, width: '100%', backgroundColor: 'transparent', border: 'none', padding: '10px' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
