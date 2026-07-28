@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Pizza Hut — Complete Order System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --color-primary: #EE1945;
+            --color-primary-dark: #B80F32;
+            --color-accent: #FFAA00;
+            --color-bg: #0A0A0C;
+            --color-text-main: #FFFFFF;
+            --color-text-muted: #CBD5E1;
+            --color-success: #10B981;
+            --color-error: #EF4444;
+            --color-warning: #F59E0B;
+            --font-display: 'Barlow Condensed', sans-serif;
+            --font-sans: 'Inter', sans-serif;
+            --font-ethiopic: 'Noto Sans Ethiopic', sans-serif;
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --radius-sm: 8px;
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-bg-hover: rgba(255, 255, 255, 0.12);
+            --glass-border: rgba(255, 255, 255, 0.18);
+            --glass-border-light: rgba(255, 255, 255, 0.28);
+            --glass-blur: blur(20px) saturate(180%);
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+        html, body { width: 100%; height: 100%; overflow: hidden; font-family: var(--font-sans); background: #040405; color: var(--color-text-main); }
+        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; min-height: 100dvh; }
+
+        .app-container { width: 100%; height: 100vh; height: 100dvh; max-width: 100%; background: var(--color-bg); position: relative; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* Background blobs */
+        .bg-mesh { position: absolute; inset: 0; z-index: 1; filter: blur(60px); pointer-events: none; overflow: hidden; }
+        .blob { position: absolute; border-radius: 50%; opacity: 0.5; animation: float 20s infinite ease-in-out; }
+        .blob-1 { width: 40vmax; height: 40vmax; top: -10%; left: -15%; background: #EE1945; animation-delay: 0s; }
+        .blob-2 { width: 35vmax; height: 35vmax; bottom: -5%; right: -15%; background: #FF7E5F; animation-delay: -7s; }
+        .blob-3 { width: 30vmax; height: 30vmax; top: 35%; left: 30%; background: #6A11CB; animation-delay: -14s; }
+        @keyframes float { 0% { transform: translate(0,0) scale(1) rotate(0deg); } 33% { transform: translate(4%,8%) scale(1.06) rotate(4deg); } 66% { transform: translate(-4%,4%) scale(0.94) rotate(-4deg); } 100% { transform: translate(0,0) scale(1) rotate(0deg); } }
+
+        /* Header */
+        .app-header { padding: calc(12px + var(--safe-top)) 4vw 10px; display: flex; justify-content: space-between; align-items: center; background: rgba(18,18,24,0.5); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-bottom: 1px solid var(--glass-border); z-index: 20; position: relative; gap: 2vw; flex-shrink: 0; }
+        .header-left { flex: 1; min-width: 0; }
+        .location-display { display: flex; flex-direction: column; gap: 2px; }
+        .location-label { font-size: clamp(8px,1.8vw,10px); text-transform: uppercase; letter-spacing: 1px; color: var(--color-text-muted); }
+        .location-value { font-size: clamp(12px,2.8vw,15px); font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 5px; }
+        .glass-select { background: transparent; border: none; color: var(--color-primary); font-family: inherit; font-size: inherit; font-weight: inherit; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; padding-right: 12px; }
+        .glass-select option { background: var(--color-bg); color: #fff; }
+        .header-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .lang-toggle { background: var(--glass-bg); border: 1px solid var(--glass-border); color: #FFF; padding: 5px 9px; border-radius: 16px; font-size: clamp(9px,2vw,10px); font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; font-family: var(--font-sans); }
+        .lang-toggle.active-lang { background: var(--color-primary); border-color: rgba(255,255,255,0.4); }
+        .lang-toggle.amharic { font-family: var(--font-ethiopic); }
+        .brand-logo { font-family: var(--font-display); font-weight: 900; color: var(--color-primary); font-size: clamp(14px,3.5vw,20px); letter-spacing: -0.5px; text-shadow: 0 2px 8px rgba(238,25,69,0.4); white-space: nowrap; }
+
+        /* Role Selector */
+        .role-selector { display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 20px; border: 1px solid var(--glass-border); }
+        .role-btn { background: transparent; border: none; color: var(--color-text-muted); padding: 4px 10px; border-radius: 16px; font-size: clamp(8px,1.6vw,10px); font-weight: 700; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; }
+        .role-btn.active { background: var(--color-primary); color: #FFF; }
+
+        /* Utility Bar */
+        .utility-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 4vw; background: rgba(18,18,24,0.4); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-bottom: 1px solid var(--glass-border); gap: 2vw; z-index: 20; position: relative; flex-shrink: 0; }
+        .search-container { flex: 1; position: relative; min-width: 0; }
+        .search-container i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); font-size: clamp(10px,2.5vw,12px); pointer-events: none; }
+        .search-input { width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); color: #fff; padding: 8px 12px 8px 32px; border-radius: 20px; font-family: var(--font-sans); font-size: clamp(11px,2.5vw,13px); outline: none; backdrop-filter: blur(10px); transition: all 0.25s ease; }
+        .search-input:focus { border-color: var(--color-primary); background: rgba(255,255,255,0.12); box-shadow: 0 0 12px rgba(238,25,69,0.25); }
+        .search-input::placeholder { color: rgba(255,255,255,0.4); }
+        .fasting-toggle-container { display: flex; align-items: center; gap: 5px; font-size: clamp(10px,2vw,11px); font-weight: 700; color: var(--color-accent); text-transform: uppercase; white-space: nowrap; flex-shrink: 0; cursor: pointer; }
+        .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: var(--glass-bg); border: 1px solid var(--glass-border); transition: .3s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked+.slider { background-color: var(--color-primary); border-color: var(--color-primary); }
+        input:checked+.slider:before { transform: translateX(14px); }
+
+        /* Main View Container */
+        .view-container { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 4vw; padding-bottom: calc(80px + var(--safe-bottom)); scrollbar-width: none; position: relative; z-index: 10; -webkit-overflow-scrolling: touch; }
+        .view-container::-webkit-scrollbar { display: none; }
+        .app-view { display: none; animation: fadeIn 0.3s ease-out forwards; }
+        .app-view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        .display-title { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-main); font-size: clamp(18px,5vw,24px); }
+        .section-header { margin: 14px 0 8px; display: flex; justify-content: space-between; align-items: center; position: relative; }
+        .section-header h2 { font-size: clamp(15px,4vw,20px); font-family: var(--font-display); text-transform: uppercase; color: var(--color-accent); letter-spacing: 0.5px; }
+
+        /* Sort Dropdown */
+        .sort-wrapper { position: relative; }
+        .sort-btn { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--color-text-muted); padding: 6px 10px; border-radius: 14px; font-size: clamp(9px,2vw,10px); font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s ease; white-space: nowrap; }
+        .sort-btn.open i:last-child { transform: rotate(180deg); }
+        .sort-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: rgba(20,20,30,0.97); backdrop-filter: blur(30px); border: 1px solid var(--glass-border-light); border-radius: 12px; padding: 4px; min-width: 130px; z-index: 100; display: none; box-shadow: 0 12px 30px rgba(0,0,0,0.6); animation: dropdownIn 0.2s cubic-bezier(0.16,1,0.3,1); }
+        .sort-dropdown.show { display: block; }
+        @keyframes dropdownIn { from { opacity: 0; transform: translateY(-6px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .sort-option { padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: clamp(10px,2.2vw,11px); font-weight: 600; color: #FFF; transition: all 0.15s ease; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+        .sort-option.selected { background: rgba(238,25,69,0.2); color: var(--color-primary); }
+
+        /* Category Scroll */
+        .category-scroll-wrapper { position: relative; display: flex; align-items: center; gap: 2px; margin: 6px 0; }
+        .category-scroll-container { flex: 1; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .category-scroll-container::-webkit-scrollbar { display: none; }
+        .category-scroll { display: flex; gap: 7px; width: max-content; padding: 3px 0; }
+        .scroll-arrow { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); color: #FFF; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 9px; flex-shrink: 0; }
+        .cat-pill { background: var(--glass-bg); backdrop-filter: blur(12px); padding: 7px 12px; border-radius: 20px; display: flex; align-items: center; gap: 5px; cursor: pointer; transition: all 0.25s ease; white-space: nowrap; font-size: clamp(10px,2.2vw,12px); font-weight: 700; text-transform: uppercase; color: var(--color-text-muted); border: 1px solid var(--glass-border); }
+        .cat-pill.active { background: var(--color-primary); color: #FFF; border-color: rgba(255,255,255,0.4); box-shadow: 0 6px 18px rgba(238,25,69,0.35); }
+
+        /* Product Grid */
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(140px,42vw,180px), 1fr)); gap: clamp(8px,2vw,12px); margin-top: 6px; }
+        @media (min-width: 500px) { .product-grid { grid-template-columns: repeat(2, 1fr); } }
+        .product-card { background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--glass-border); cursor: pointer; display: flex; flex-direction: column; transition: transform 0.2s ease, border-color 0.2s ease; position: relative; }
+        .product-card.sold-out { opacity: 0.45; pointer-events: none; filter: grayscale(0.6); }
+        .product-card:active:not(.sold-out) { transform: scale(0.97); }
+        .img-wrapper { position: relative; width: 100%; aspect-ratio: 4/3; background: rgba(0,0,0,0.3); overflow: hidden; }
+        .product-badge { position: absolute; top: 6px; left: 6px; background: var(--color-accent); color: #000; padding: 2px 7px; border-radius: 8px; font-size: clamp(7px,1.6vw,8px); font-weight: 800; z-index: 5; }
+        .inventory-badge { position: absolute; top: 5px; right: 5px; padding: 2px 6px; border-radius: 8px; font-size: clamp(7px,1.6vw,8px); font-weight: 800; text-transform: uppercase; z-index: 5; }
+        .badge-sold-out { background: rgba(239,68,68,0.9); color: #FFF; }
+        .badge-limited { background: rgba(245,158,11,0.9); color: #000; animation: pulse-badge 2s infinite; }
+        @keyframes pulse-badge { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .dietary-badges { position: absolute; bottom: 6px; left: 6px; display: flex; gap: 3px; z-index: 5; }
+        .dietary-icon { width: clamp(16px,4vw,20px); height: clamp(16px,4vw,20px); border-radius: 50%; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; font-size: clamp(8px,2vw,10px); border: 1px solid rgba(255,255,255,0.2); }
+        .product-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+        .product-info { padding: clamp(6px,1.5vw,10px); display: flex; flex-direction: column; flex: 1; justify-content: space-between; }
+        .product-info h4 { font-size: clamp(11px,2.4vw,13px); font-weight: 700; color: #FFF; margin-bottom: 2px; line-height: 1.2; }
+        .product-info p { font-size: clamp(9px,2vw,10px); color: var(--color-text-muted); margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+        .product-price-row { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+        .product-price { font-size: clamp(11px,2.4vw,13px); font-weight: 800; color: var(--color-accent); }
+        .add-icon-btn { color: var(--color-primary); font-size: clamp(15px,3.5vw,18px); transition: transform 0.2s ease; }
+
+        /* Flying item */
+        .flying-item { position: fixed; z-index: 9999; pointer-events: none; transition: all 0.5s cubic-bezier(0.25,0.46,0.45,0.94); width: 45px; height: 45px; border-radius: 50%; object-fit: cover; box-shadow: 0 8px 25px rgba(238,25,69,0.5); border: 2px solid rgba(255,255,255,0.3); }
+
+        /* Floating Tray */
+        .floating-tray-btn { position: fixed; bottom: calc(90px + var(--safe-bottom)); right: clamp(16px,4vw,20px); background: rgba(238,25,69,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #FFF; border: 1px solid rgba(255,255,255,0.35); padding: 10px 16px; border-radius: 28px; font-family: var(--font-sans); font-size: clamp(10px,2.2vw,12px); font-weight: 800; text-transform: uppercase; box-shadow: 0 10px 28px rgba(238,25,69,0.5); display: flex; align-items: center; gap: 8px; cursor: pointer; z-index: 90; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease; transform: scale(0); opacity: 0; pointer-events: none; }
+        .floating-tray-btn.visible { transform: scale(1); opacity: 1; pointer-events: auto; }
+        .floating-badge { background: #FFF; color: var(--color-primary); width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: clamp(9px,2vw,10px); font-weight: 900; }
+
+        /* Tray Styles */
+        .tray-header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--glass-border); gap: 8px; }
+        .btn-back-menu { background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); color: var(--color-text-main); padding: 7px 12px; border-radius: 16px; font-size: clamp(9px,2vw,10px); font-weight: 700; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .btn-clear-cart { background: transparent; border: 1px solid rgba(239,68,68,0.4); color: var(--color-error); padding: 7px 12px; border-radius: 16px; font-size: clamp(9px,2vw,10px); font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+        .cart-item { display: flex; align-items: center; gap: clamp(8px,2vw,12px); background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); padding: clamp(10px,2vw,12px); border-radius: var(--radius-md); margin-bottom: 8px; border: 1px solid var(--glass-border); position: relative; overflow: hidden; }
+        .cart-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--color-primary); border-radius: 0 3px 3px 0; }
+        .cart-item-img-wrapper { position: relative; flex-shrink: 0; }
+        .cart-item img { width: clamp(40px,10vw,50px); height: clamp(40px,10vw,50px); object-fit: cover; border-radius: 10px; border: 2px solid var(--glass-border); }
+        .cart-item-size-badge { position: absolute; bottom: -3px; right: -3px; background: var(--color-primary); color: #FFF; width: 18px; height: 18px; border-radius: 50%; font-size: 7px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 2px solid #000; }
+        .cart-item-info { flex: 1; min-width: 0; }
+        .cart-item-title { font-size: clamp(11px,2.5vw,13px); font-weight: 700; color: #fff; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .cart-item-crust-tag { font-size: clamp(8px,1.8vw,9px); background: rgba(255,170,0,0.2); color: var(--color-accent); padding: 1px 5px; border-radius: 6px; }
+        .cart-item-meta { font-size: clamp(9px,2vw,10px); color: var(--color-text-muted); margin-top: 1px; }
+        .cart-item-price { font-size: clamp(11px,2.5vw,13px); color: var(--color-accent); font-weight: 800; margin-top: 1px; }
+        .qty-selector { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); padding: 5px 10px; border-radius: 16px; }
+        .qty-btn { background: transparent; border: none; color: #FFF; font-size: clamp(12px,3vw,14px); cursor: pointer; font-weight: 700; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .qty-value { font-size: clamp(11px,2.5vw,13px); font-weight: 700; min-width: 14px; text-align: center; color: #FFF; }
+        .remove-btn { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--color-error); width: clamp(28px,7vw,32px); height: clamp(28px,7vw,32px); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: clamp(10px,2.5vw,12px); flex-shrink: 0; }
+
+        /* Cards */
+        .table-selector-card, .instructions-card, .summary-block, .payment-card, .tracker-card, .admin-card, .order-card, .report-card {
+            background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: clamp(10px,2.5vw,14px); margin-bottom: 10px; position: relative; overflow: hidden; }
+        .table-selector-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .table-selector-label, .instructions-label, .payment-section-title { font-size: clamp(10px,2.2vw,12px); font-weight: 700; text-transform: uppercase; color: var(--color-accent); display: flex; align-items: center; gap: 5px; }
+        .table-input-field { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #FFF; padding: 5px 8px; border-radius: var(--radius-sm); font-size: clamp(11px,2.5vw,13px); font-weight: 700; width: 70px; text-align: center; outline: none; }
+        .table-input-field.error { border-color: var(--color-error); box-shadow: 0 0 12px rgba(239,68,68,0.3); }
+        .table-input-field::placeholder { color: rgba(255,255,255,0.35); font-weight: 400; }
+        .instructions-textarea { width: 100%; height: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #FFF; border-radius: var(--radius-sm); padding: 8px 10px; font-size: clamp(10px,2.2vw,11px); outline: none; resize: none; margin-top: 5px; }
+        .split-bill-toggle { display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: var(--glass-bg); border-radius: var(--radius-md); margin-bottom: 10px; border: 1px solid var(--glass-border); font-size: clamp(10px,2.2vw,11px); color: var(--color-text-muted); flex-wrap: wrap; }
+        .split-count { width: 36px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #FFF; padding: 3px; border-radius: 8px; text-align: center; font-size: clamp(10px,2.2vw,11px); font-weight: 700; outline: none; }
+        .summary-row { display: flex; justify-content: space-between; font-size: clamp(10px,2.2vw,12px); margin-bottom: 4px; color: var(--color-text-muted); }
+        .summary-row.total { border-top: 1px solid var(--glass-border); padding-top: 8px; font-weight: 800; color: #FFF; font-size: clamp(12px,3vw,15px); }
+        .summary-row.tax-row { font-size: clamp(9px,2vw,10px); }
+
+        /* Payment */
+        .payment-shortcuts { display: grid; grid-template-columns: repeat(2,1fr); gap: clamp(6px,1.5vw,8px); margin-top: 4px; }
+        .payment-btn { padding: clamp(12px,3vw,14px) 8px; border-radius: var(--radius-sm); background: var(--glass-bg); border: 2px solid var(--glass-border); color: #FFF; cursor: pointer; font-size: clamp(10px,2.2vw,12px); font-weight: 700; text-align: center; transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
+        .payment-btn i { font-size: clamp(16px,4vw,22px); }
+        .payment-btn.selected { border-color: var(--color-success); background: rgba(16,185,129,0.2); box-shadow: 0 0 16px rgba(16,185,129,0.25); }
+        .payment-btn.selected::after { content: '✓'; position: absolute; top: 6px; right: 6px; background: var(--color-success); color: #FFF; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 900; }
+        .payment-account-display { display: none; margin-top: 10px; padding: 12px; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35); border-radius: var(--radius-sm); text-align: center; }
+        .payment-account-display.show { display: block; }
+        .payment-account-display .account-number { font-size: clamp(16px,4vw,20px); font-weight: 900; color: var(--color-success); font-family: var(--font-display); }
+        .copy-account-btn { margin-top: 8px; background: var(--color-success); color: #FFF; border: none; padding: 6px 12px; border-radius: 14px; font-size: clamp(9px,2vw,10px); font-weight: 700; cursor: pointer; }
+        .btn-primary { background: var(--color-primary); color: #FFF; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius-sm); padding: clamp(12px,3vw,15px); width: 100%; font-size: clamp(11px,2.5vw,14px); font-weight: 700; text-transform: uppercase; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 8px; box-shadow: 0 6px 20px rgba(238,25,69,0.35); transition: all 0.2s ease; }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-secondary { background: var(--glass-bg); color: #FFF; border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: clamp(10px,2.5vw,12px); width: 100%; font-size: clamp(10px,2.2vw,12px); font-weight: 700; text-transform: uppercase; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 6px; transition: all 0.2s ease; }
+        .btn-secondary:active { transform: scale(0.98); }
+
+        /* Tracker */
+        .tracker-card { padding: clamp(20px,5vw,30px); text-align: center; margin-bottom: 20px; }
+        .pulse-ring { width: 70px; height: 70px; background: rgba(238,25,69,0.15); border: 2px solid var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; box-shadow: 0 0 20px rgba(238,25,69,0.4); animation: pulse-ring 2s infinite; }
+        .pulse-ring i { font-size: 28px; color: var(--color-primary); }
+        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(238,25,69,0.5); } 70% { box-shadow: 0 0 0 15px rgba(238,25,69,0); } 100% { box-shadow: 0 0 0 0 rgba(238,25,69,0); } }
+        .timeline { text-align: left; position: relative; padding-left: 20px; border-left: 2px solid rgba(255,255,255,0.1); margin-top: 20px; }
+        .timeline-step { margin-bottom: 20px; position: relative; color: var(--color-text-muted); font-weight: 600; font-size: 13px; }
+        .timeline-step:last-child { margin-bottom: 0; }
+        .timeline-step::before { content: ''; position: absolute; left: -27px; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--color-bg); border: 2px solid rgba(255,255,255,0.3); }
+        .timeline-step.active { color: #FFF; font-weight: 700; }
+        .timeline-step.active::before { background: var(--color-success); border-color: var(--color-success); box-shadow: 0 0 10px rgba(16,185,129,0.5); }
+        .timeline-step.preparing::before { background: var(--color-warning); border-color: var(--color-warning); box-shadow: 0 0 10px rgba(245,158,11,0.5); }
+
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 200; display: none; align-items: flex-end; }
+        .modal-sheet { width: 100%; max-height: 85dvh; background: rgba(22,22,30,0.92); backdrop-filter: blur(30px) saturate(200%); -webkit-backdrop-filter: blur(30px) saturate(200%); border-top: 1px solid var(--glass-border-light); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: clamp(16px,4vw,24px); overflow-y: auto; animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1) forwards; -webkit-overflow-scrolling: touch; }
+        .modal-drag-handle { width: 32px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin: 0 auto 10px; cursor: grab; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .modal-close-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .modal-close-btn { background: var(--glass-bg); border: 1px solid var(--glass-border); color: #FFF; width: 26px; height: 26px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+        .modal-img-container { position: relative; width: 100%; aspect-ratio: 16/10; max-height: 180px; border-radius: var(--radius-md); overflow: hidden; margin-bottom: 10px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.3); }
+        .modal-img { width: 100%; height: 100%; object-fit: cover; transition: all 0.35s ease; }
+        .modal-img.size-small { transform: scale(0.85); }
+        .modal-img.size-medium { transform: scale(1); }
+        .modal-img.size-large { transform: scale(1.1); }
+        .modal-desc { font-size: clamp(10px,2.2vw,12px); color: var(--color-text-muted); line-height: 1.4; margin-bottom: 12px; }
+        .options-group-title { font-size: clamp(10px,2.2vw,11px); text-transform: uppercase; color: var(--color-accent); font-weight: 700; margin-bottom: 5px; }
+        .selector-row { display: flex; gap: 5px; margin-bottom: 5px; }
+        .selector-btn { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #FFF; padding: clamp(7px,2vw,9px); border-radius: var(--radius-sm); cursor: pointer; font-size: clamp(9px,2vw,10px); font-weight: 700; text-align: center; text-transform: uppercase; }
+        .selector-btn.active { background: var(--color-primary); border-color: rgba(255,255,255,0.4); box-shadow: 0 4px 12px rgba(238,25,69,0.35); }
+        .crust-options { display: flex; gap: 5px; margin-bottom: 10px; }
+        .crust-btn { flex: 1; padding: 7px 5px; border-radius: var(--radius-sm); background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #FFF; cursor: pointer; font-size: clamp(8px,1.8vw,9px); font-weight: 700; text-align: center; text-transform: uppercase; }
+        .crust-btn.active { background: var(--color-primary); border-color: rgba(255,255,255,0.4); }
+
+        /* Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(18,18,24,0.6); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); border-top: 1px solid var(--glass-border); display: flex; justify-content: space-around; padding: 8px 4vw calc(8px + var(--safe-bottom)); z-index: 100; }
+        .liquid-nav-pill { position: absolute; top: 6px; left: 0; height: calc(100% - 12px - var(--safe-bottom)); background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border-light); border-radius: 22px; z-index: 1; pointer-events: none; transition: transform 0.4s cubic-bezier(0.34,1.2,0.64,1), width 0.4s cubic-bezier(0.34,1.2,0.64,1); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--color-text-muted); font-size: clamp(8px,2vw,10px); font-weight: 700; text-transform: uppercase; gap: 2px; cursor: pointer; position: relative; z-index: 2; padding: 5px clamp(16px,5vw,24px); }
+        .nav-item i { font-size: clamp(14px,3.5vw,18px); }
+        .nav-item.active { color: #FFF; }
+        .badge { position: absolute; top: 0; right: calc(50% - 30px); background: var(--color-accent); color: #000; font-size: clamp(7px,1.8vw,9px); padding: 1px 4px; border-radius: 7px; font-weight: 800; }
+
+        /* Empty states */
+        .empty-cart-state { text-align: center; padding: clamp(30px,8vw,50px) 4vw; }
+        .empty-cart-icon { font-size: clamp(40px,10vw,60px); margin-bottom: 10px; opacity: 0.5; animation: float 3s ease-in-out infinite; }
+        .btn-browse-menu { background: var(--color-primary); color: #FFF; border: none; padding: 10px 18px; border-radius: 18px; font-weight: 700; font-size: clamp(11px,2.5vw,13px); cursor: pointer; text-transform: uppercase; }
+        .popular-section { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--glass-border); }
+        .popular-section h3 { font-size: clamp(13px,3vw,15px); color: var(--color-accent); margin-bottom: 8px; text-transform: uppercase; }
+        .popular-item { display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; border-radius: var(--radius-sm); }
+        .popular-item img { width: clamp(30px,7vw,36px); height: clamp(30px,7vw,36px); border-radius: 6px; object-fit: cover; }
+        .popular-item-info { flex: 1; }
+        .popular-item-info h4 { font-size: clamp(10px,2.2vw,11px); font-weight: 600; color: #FFF; }
+        .popular-item-info span { font-size: clamp(9px,2vw,10px); color: var(--color-accent); font-weight: 700; }
+        .popular-item i { color: var(--color-primary); font-size: clamp(10px,2.5vw,12px); }
+        .kitchen-info-note { font-size: clamp(9px,2vw,10px); color: var(--color-text-muted); text-align: center; margin-top: 6px; }
+
+        .toast-notification { position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: var(--color-primary); color: #FFF; padding: 8px 16px; border-radius: 16px; font-size: clamp(10px,2.2vw,12px); font-weight: 700; z-index: 999; pointer-events: none; animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.5s forwards; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+        .required-star { color: var(--color-error); margin-left: 2px; }
+        .field-error-msg { color: var(--color-error); font-size: clamp(9px,2vw,10px); font-weight: 600; margin-top: 4px; display: none; }
+        .field-error-msg.show { display: block; }
+
+        /* Admin Styles */
+        .admin-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
+        .stat-card { background: var(--glass-bg); padding: 12px; border-radius: var(--radius-sm); text-align: center; border: 1px solid var(--glass-border); }
+        .stat-card .number { font-size: clamp(20px,4vw,28px); font-weight: 900; color: var(--color-accent); }
+        .stat-card .label { font-size: clamp(8px,1.6vw,10px); color: var(--color-text-muted); text-transform: uppercase; font-weight: 600; }
+        .admin-tabs { display: flex; gap: 4px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+        .admin-tabs::-webkit-scrollbar { display: none; }
+        .admin-tab { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--color-text-muted); padding: 6px 14px; border-radius: 16px; font-size: clamp(9px,2vw,10px); font-weight: 700; cursor: pointer; white-space: nowrap; text-transform: uppercase; transition: all 0.2s ease; }
+        .admin-tab.active { background: var(--color-primary); color: #FFF; border-color: rgba(255,255,255,0.4); }
+
+        .admin-item-card { display: flex; align-items: center; gap: 12px; background: var(--glass-bg); padding: 10px; border-radius: var(--radius-sm); margin-bottom: 6px; border: 1px solid var(--glass-border); cursor: pointer; transition: all 0.2s ease; }
+        .admin-item-card:active { transform: scale(0.98); }
+        .admin-item-card img { width: 50px; height: 50px; object-fit: cover; border-radius: var(--radius-sm); }
+        .admin-item-card .info { flex: 1; }
+        .admin-item-card .info h4 { font-size: clamp(11px,2.2vw,13px); color: #FFF; }
+        .admin-item-card .info p { font-size: clamp(9px,1.8vw,10px); color: var(--color-text-muted); }
+        .admin-item-card .status-badge { padding: 2px 8px; border-radius: 10px; font-size: clamp(8px,1.6vw,9px); font-weight: 700; }
+        .status-badge.available { background: rgba(16,185,129,0.2); color: var(--color-success); }
+        .status-badge.sold-out { background: rgba(239,68,68,0.2); color: var(--color-error); }
+        .status-badge.limited { background: rgba(245,158,11,0.2); color: var(--color-warning); }
+
+        /* Kitchen Order Cards */
+        .order-card { margin-bottom: 8px; }
+        .order-card .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .order-card .order-header .order-id { font-weight: 800; color: var(--color-accent); }
+        .order-card .order-header .order-time { font-size: 11px; color: var(--color-text-muted); }
+        .order-card .order-items { font-size: 12px; color: var(--color-text-muted); margin-bottom: 8px; }
+        .order-card .order-total { font-weight: 800; color: #FFF; }
+        .order-actions { display: flex; gap: 6px; margin-top: 6px; }
+        .order-actions button { flex: 1; padding: 6px 10px; border-radius: var(--radius-sm); border: none; font-weight: 700; font-size: clamp(9px,2vw,10px); cursor: pointer; text-transform: uppercase; }
+        .btn-accept { background: var(--color-success); color: #FFF; }
+        .btn-prepare { background: var(--color-warning); color: #000; }
+        .btn-ready { background: var(--color-primary); color: #FFF; }
+        .order-status-badge { padding: 2px 8px; border-radius: 10px; font-size: clamp(8px,1.6vw,9px); font-weight: 700; }
+        .order-status-badge.pending { background: rgba(245,158,11,0.2); color: var(--color-warning); }
+        .order-status-badge.preparing { background: rgba(59,130,246,0.2); color: #3B82F6; }
+        .order-status-badge.ready { background: rgba(16,185,129,0.2); color: var(--color-success); }
+
+        /* Report styles */
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 12px; }
+        .report-stat { background: var(--glass-bg); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); text-align: center; }
+        .report-stat .value { font-size: clamp(22px,5vw,30px); font-weight: 900; color: var(--color-accent); }
+        .report-stat .label { font-size: clamp(9px,1.8vw,11px); color: var(--color-text-muted); text-transform: uppercase; font-weight: 600; margin-top: 2px; }
+        .ranking-list { list-style: none; padding: 0; }
+        .ranking-list li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--glass-border); font-size: clamp(10px,2vw,12px); }
+        .ranking-list li .rank { font-weight: 800; color: var(--color-accent); width: 30px; }
+        .ranking-list li .name { flex: 1; color: #FFF; }
+        .ranking-list li .count { color: var(--color-text-muted); }
+
+        /* Responsive tweaks */
+        @media (max-width: 400px) {
+            .admin-stats { grid-template-columns: repeat(2, 1fr); }
+            .report-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container" id="app-container">
+    <div class="bg-mesh"><div class="blob blob-1"></div><div class="blob blob-2"></div><div class="blob blob-3"></div></div>
+
+    <!-- HEADER -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="location-display">
+                <p class="location-label" data-i18n="city_label">Addis Ababa City</p>
+                <div class="location-value">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <select id="branch-select" class="glass-select">
+                        <option value="4 Kilo">4 Kilo</option><option value="Lebu">Lebu</option>
+                        <option value="Morning Star Mall">Morning Star Mall</option>
+                        <option value="Bole Bulbula">Bole Bulbula</option>
+                        <option value="Century Mall">Century Mall</option>
+                        <option value="Sarbet Boran Complex">Sarbet Boran Complex</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="role-selector" id="role-selector">
+                <button class="role-btn active" data-role="customer" onclick="switchRole('customer')"><i class="fa-solid fa-user"></i> Customer</button>
+                <button class="role-btn" data-role="kitchen" onclick="switchRole('kitchen')"><i class="fa-solid fa-utensils"></i> Kitchen</button>
+                <button class="role-btn" data-role="admin" onclick="switchRole('admin')"><i class="fa-solid fa-gauge-high"></i> Admin</button>
+            </div>
+            <button class="lang-toggle active-lang" id="lang-en" onclick="switchLanguage('en')">EN</button>
+            <button class="lang-toggle amharic" id="lang-am" onclick="switchLanguage('am')">አማ</button>
+            <div class="brand-logo">PIZZA HUT</div>
+        </div>
+    </header>
+
+    <!-- UTILITY BAR -->
+    <div class="utility-bar" id="utility-bar">
+        <div class="search-container">
+            <i class="fa-solid fa-search"></i>
+            <input type="text" class="search-input" id="menu-search" placeholder="Search menu...">
+        </div>
+        <div class="fasting-toggle-container" onclick="document.getElementById('fasting-toggle').click()">
+            <span data-i18n="fasting">Fasting</span>
+            <label class="switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="fasting-toggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- MAIN VIEWPORT -->
+    <main class="view-container" id="view-viewport">
+        <!-- CUSTOMER VIEW: HOME -->
+        <div id="view-home" class="app-view active">
+            <h1 class="display-title" style="margin-top:4px;">
+                <span data-i18n="explore">Explore Our</span> <br>
+                <span style="color:var(--color-primary);" data-i18n="delicious_menu">Delicious Menu</span>
+            </h1>
+            <div class="category-scroll-wrapper">
+                <button class="scroll-arrow" onclick="scrollCategories(-120)"><i class="fa-solid fa-chevron-left"></i></button>
+                <div class="category-scroll-container" id="category-scroll-container">
+                    <div class="category-scroll" id="categories-bar"></div>
+                </div>
+                <button class="scroll-arrow" onclick="scrollCategories(120)"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div class="section-header">
+                <h2 id="current-category-title">Veg Pizza</h2>
+                <div class="sort-wrapper" id="sort-wrapper">
+                    <button class="sort-btn" id="sort-btn" onclick="toggleSortDropdown()">
+                        <i class="fa-solid fa-arrow-up-wide-short"></i><span id="sort-label">Popular</span><i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <div class="sort-dropdown" id="sort-dropdown">
+                        <div class="sort-option selected" data-sort="default" onclick="selectSort('default', this)"><i class="fa-solid fa-star"></i> Popular</div>
+                        <div class="sort-option" data-sort="price-asc" onclick="selectSort('price-asc', this)"><i class="fa-solid fa-arrow-up"></i> Price: Low to High</div>
+                        <div class="sort-option" data-sort="price-desc" onclick="selectSort('price-desc', this)"><i class="fa-solid fa-arrow-down"></i> Price: High to Low</div>
+                        <div class="sort-option" data-sort="name-asc" onclick="selectSort('name-asc', this)"><i class="fa-solid fa-font"></i> A to Z</div>
+                    </div>
+                </div>
+            </div>
+            <div class="product-grid" id="products-target-grid"></div>
+        </div>
+
+        <!-- CUSTOMER VIEW: TRAY -->
+        <div id="view-cart" class="app-view">
+            <div class="tray-header-bar">
+                <button class="btn-back-menu" onclick="navigateTo('home')"><i class="fa-solid fa-arrow-left"></i> Back</button>
+                <h1 class="display-title" style="font-size:clamp(16px,4vw,20px);">Your Tray</h1>
+                <button class="btn-clear-cart" id="btn-clear-cart" onclick="clearCart()" style="display:none;"><i class="fa-solid fa-trash"></i> Clear</button>
+            </div>
+            <div id="cart-items-root"></div>
+            <div id="cart-form-section" style="display:none;">
+                <div class="table-selector-card">
+                    <div class="table-selector-label"><i class="fa-solid fa-chair"></i> Table Number <span class="required-star">*</span></div>
+                    <input type="text" id="table-number-input" class="table-input-field" placeholder="e.g. 04" value="">
+                </div>
+                <div id="table-error-msg" class="field-error-msg">Please enter a table number</div>
+                <div class="split-bill-toggle">
+                    <i class="fa-solid fa-users"></i> Split among
+                    <input type="number" class="split-count" id="split-count" value="1" min="1" max="20" onchange="updateSplitDisplay()">
+                    people <span id="split-per-person" style="color:var(--color-accent);font-weight:700;font-size:clamp(10px,2.2vw,11px);margin-left:auto;"></span>
+                </div>
+                <div class="instructions-card">
+                    <div class="instructions-label"><i class="fa-solid fa-pen-to-square"></i> Extra Instructions</div>
+                    <textarea id="extra-instructions-input" class="instructions-textarea" placeholder="e.g. No onions, Extra cheese..."></textarea>
+                </div>
+                <div class="summary-block">
+                    <div class="summary-row"><span>Subtotal</span><span id="summary-subtotal">Br 0.00</span></div>
+                    <div class="summary-row tax-row"><span>VAT (15%)</span><span id="summary-vat">Br 0.00</span></div>
+                    <div class="summary-row tax-row"><span>Service (10%)</span><span id="summary-service">Br 0.00</span></div>
+                    <div class="summary-row total"><span>Total</span><span id="summary-total">Br 0.00</span></div>
+                </div>
+                <div class="payment-card">
+                    <div class="payment-section-title"><i class="fa-solid fa-credit-card"></i> Payment Method <span class="required-star">*</span></div>
+                    <div id="payment-error-msg" class="field-error-msg">Please select a payment method</div>
+                    <div class="payment-shortcuts">
+                        <button class="payment-btn" onclick="selectPayment('telebirr', this)"><i class="fa-solid fa-mobile-screen"></i> Telebirr<span style="font-size:8px;color:var(--color-text-muted);">0905909090</span></button>
+                        <button class="payment-btn" onclick="selectPayment('cbe', this)"><i class="fa-solid fa-building-columns"></i> CBE Birr<span style="font-size:8px;color:var(--color-text-muted);">0987878787</span></button>
+                        <button class="payment-btn" onclick="selectPayment('chapa', this)"><i class="fa-solid fa-globe"></i> Chapa<span style="font-size:8px;color:var(--color-text-muted);">0989</span></button>
+                        <button class="payment-btn" onclick="selectPayment('cash', this)"><i class="fa-solid fa-money-bill"></i> Cash<span style="font-size:8px;color:var(--color-text-muted);">Waiter</span></button>
+                    </div>
+                    <div class="payment-account-display" id="payment-account-display">
+                        <div class="account-label">Pay to this account</div>
+                        <div class="account-number" id="display-account-number"></div>
+                        <div class="account-name" id="display-account-name"></div>
+                        <button class="copy-account-btn" onclick="copyAccountNumber()"><i class="fa-solid fa-copy"></i> Copy Number</button>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="submitOrderToTelegram()"><i class="fa-brands fa-telegram"></i> Send Order to Kitchen</button>
+            </div>
+            <div class="kitchen-info-note">Kitchen: @MO76k7 (0923845344)</div>
+        </div>
+
+        <!-- CUSTOMER VIEW: TRACKER -->
+        <div id="view-tracker" class="app-view">
+            <h1 class="display-title" style="text-align:center;margin-bottom:20px;font-size:clamp(24px,5vw,32px);">Order Status</h1>
+            <div class="tracker-card" id="tracker-card">
+                <div class="pulse-ring"><i class="fa-solid fa-fire-burner"></i></div>
+                <h3 style="font-size:clamp(18px,4vw,22px);margin-bottom:5px;color:#FFF;" id="tracker-title">Waiting for Kitchen...</h3>
+                <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:24px;font-weight:600;" id="tracker-estimate">Est. Time: 25 mins</p>
+                <div class="timeline" id="tracker-timeline">
+                    <div class="timeline-step active" id="step-1">Order Placed</div>
+                    <div class="timeline-step" id="step-2">Kitchen Accepted</div>
+                    <div class="timeline-step" id="step-3">Preparing</div>
+                    <div class="timeline-step" id="step-4">Ready for Pickup</div>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="navigateTo('home')" style="background:var(--glass-bg);color:#fff;border:1px solid var(--glass-border);box-shadow:none;">Start New Order</button>
+        </div>
+
+        <!-- KITCHEN VIEW -->
+        <div id="view-kitchen" class="app-view">
+            <h1 class="display-title" style="margin-bottom:14px;">👨‍🍳 Kitchen Dashboard</h1>
+            <div id="kitchen-orders-container"></div>
+        </div>
+
+        <!-- ADMIN VIEW -->
+        <div id="view-admin" class="app-view">
+            <h1 class="display-title" style="margin-bottom:10px;">⚙️ Admin Dashboard</h1>
+            <div class="admin-tabs" id="admin-tabs">
+                <button class="admin-tab active" data-tab="menu" onclick="switchAdminTab('menu')"><i class="fa-solid fa-list"></i> Menu</button>
+                <button class="admin-tab" data-tab="reports" onclick="switchAdminTab('reports')"><i class="fa-solid fa-chart-simple"></i> Reports</button>
+            </div>
+            <div id="admin-menu-panel">
+                <button class="btn-secondary" onclick="showAddItemModal()" style="width:auto;padding:6px 14px;display:inline-flex;margin-bottom:10px;"><i class="fa-solid fa-plus"></i> Add Item</button>
+                <div id="admin-menu-list"></div>
+            </div>
+            <div id="admin-reports-panel" style="display:none;">
+                <div class="admin-tabs" style="margin-bottom:8px;">
+                    <button class="admin-tab active" data-report="daily" onclick="switchReportTab('daily')">Daily</button>
+                    <button class="admin-tab" data-report="weekly" onclick="switchReportTab('weekly')">Weekly</button>
+                    <button class="admin-tab" data-report="monthly" onclick="switchReportTab('monthly')">Monthly</button>
+                </div>
+                <div id="report-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="product-modal">
+        <div class="modal-sheet" id="modal-sheet">
+            <div class="modal-drag-handle"></div>
+            <div class="modal-close-header">
+                <h3 class="display-title" id="modal-item-name" style="font-size:clamp(16px,4vw,20px);"></h3>
+                <button class="modal-close-btn" onclick="closeProductModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-img-container"><img src="" id="modal-item-img" class="modal-img size-medium" alt=""></div>
+            <p id="modal-item-desc" class="modal-desc"></p>
+            <div id="crust-options-container" style="display:none;">
+                <div class="options-group-title">Crust Type</div>
+                <div class="crust-options">
+                    <div class="crust-btn active" id="crust-regular" onclick="setCrust('regular')">Regular</div>
+                    <div class="crust-btn" id="crust-thin" onclick="setCrust('thin')">Thin</div>
+                    <div class="crust-btn" id="crust-thick" onclick="setCrust('thick')">Thick</div>
+                    <div class="crust-btn" id="crust-stuffed" onclick="setCrust('stuffed')">Stuffed (+Br 795)</div>
+                </div>
+            </div>
+            <div id="pizza-options-container"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;border-top:1px solid var(--glass-border);padding-top:12px;gap:10px;">
+                <div class="qty-selector">
+                    <button class="qty-btn" onclick="mutateModalQuantity(-1)">−</button>
+                    <span class="qty-value" id="modal-qty-display">1</span>
+                    <button class="qty-btn" onclick="mutateModalQuantity(1)">+</button>
+                </div>
+                <button class="btn-primary" style="margin:0;flex:1;" onclick="addModalItemToCart()">Add — Br <span id="modal-total-price-display">0</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Edit/Add Modal -->
+    <div class="modal-overlay" id="admin-edit-modal">
+        <div class="modal-sheet" id="admin-edit-sheet">
+            <div class="modal-drag-handle"></div>
+            <div class="modal-close-header">
+                <h3 class="display-title" id="admin-edit-title" style="font-size:clamp(16px,4vw,20px);">Edit Item</h3>
+                <button class="modal-close-btn" onclick="closeAdminEditModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <input type="text" id="admin-edit-name" placeholder="Item Name" style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);color:#FFF;padding:10px;border-radius:var(--radius-sm);font-size:14px;outline:none;">
+                <textarea id="admin-edit-desc" placeholder="Description" style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);color:#FFF;padding:10px;border-radius:var(--radius-sm);font-size:14px;outline:none;resize:none;height:60px;"></textarea>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" id="admin-edit-price" placeholder="Price" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);color:#FFF;padding:10px;border-radius:var(--radius-sm);font-size:14px;outline:none;">
+                    <input type="text" id="admin-edit-img" placeholder="Image URL" style="flex:2;background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);color:#FFF;padding:10px;border-radius:var(--radius-sm);font-size:14px;outline:none;">
+                </div>
+                <select id="admin-edit-inventory" style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);color:#FFF;padding:10px;border-radius:var(--radius-sm);font-size:14px;outline:none;">
+                    <option value="available">Available</option>
+                    <option value="limited">Limited</option>
+                    <option value="sold-out">Sold Out</option>
+                </select>
+                <select id="admin-edit-category" style="background:rgba(0,0,0,0.3);border:1px solid var(--glass-border);color:#FFF;padding:10px;border-radius:var(--radius-sm);font-size:14px;outline:none;">
+                    <option value="veg-pizza">Veg Pizza</option>
+                    <option value="meat-pizza">Meat Pizza</option>
+                    <option value="chicken-pizza">Chicken Pizza</option>
+                    <option value="fasting-pizza">Fasting Pizza</option>
+                    <option value="sides">Sides & Pasta</option>
+                    <option value="specials">Specials & Melts</option>
+                    <option value="drinks">Drinks</option>
+                </select>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn-primary" onclick="saveAdminItem()" style="margin:0;flex:1;">Save</button>
+                    <button class="btn-secondary" onclick="deleteAdminItem()" style="margin:0;flex:0.5;background:rgba(239,68,68,0.2);border-color:rgba(239,68,68,0.4);color:var(--color-error);">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Tray -->
+    <button class="floating-tray-btn" id="floating-tray-btn" onclick="navigateTo('cart')">
+        <i class="fa-solid fa-basket-shopping"></i><span>View Tray</span><span class="floating-badge" id="floating-badge-count">0</span>
+    </button>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav" id="bottom-nav">
+        <div class="liquid-nav-pill" id="liquid-pill"></div>
+        <div class="nav-item active" id="nav-home" onclick="navigateTo('home')"><i class="fa-solid fa-pizza-slice"></i><span>Menu</span></div>
+        <div class="nav-item" id="nav-cart" onclick="navigateTo('cart')"><i class="fa-solid fa-basket-shopping"></i><span>Tray</span><span class="badge" id="cart-badge-count" style="display:none;">0</span></div>
+        <div class="nav-item" id="nav-tracker" onclick="navigateTo('tracker')"><i class="fa-solid fa-clock"></i><span>Status</span></div>
+    </nav>
+</div>
+
+<script>
+// ==================== DATA ====================
+const MENU_DATA = {
+    "veg-pizza": { title: "Veg Pizza", title_am: "የአትክልት ፒዛ", items: [
+        { id: "v1", name: "MARGHERITA PIZZA", name_am: "ማርጋሪታ ፒዛ", desc: "Tomato Sauce, Mozzarella Cheese, Tomato", desc_am: "የቲማቲም ሶስ፣ ሞዛሬላ አይብ፣ ቲማቲም", prices: { small: 495, medium: 770, large: 1120 }, img: "https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400&q=80", type: "pizza", popular: true, dietary: ["vegetarian"], inventory: "available" },
+        { id: "v2", name: "CHEESE PIZZA", name_am: "የአይብ ፒዛ", desc: "Tomato Sauce, Mozzarella Cheese, Cheddar Cheese", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ቼዳር አይብ", prices: { small: 475, medium: 740, large: 1100 }, img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80", type: "pizza", popular: true, dietary: ["vegetarian"], inventory: "available" },
+        { id: "v3", name: "HOT & SPICY VEG", name_am: "ቅመም አትክልት", desc: "Tomato Sauce, Mozzarella Cheese, Onion, Capsicum, Green Chilli", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ሽንኩርት፣ ቃሪያ፣ አረንጓዴ ቃሪያ", prices: { small: 550, medium: 875, large: 1315 }, img: "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&q=80", type: "pizza", dietary: ["vegetarian", "spicy"], inventory: "available" },
+        { id: "v4", name: "MUSHROOM LOVERS", name_am: "እንጉዳይ ወዳጆች", desc: "Tomato Sauce, Mozzarella Cheese, Mushroom, Olives", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ እንጉዳይ፣ ወይራ", prices: { small: 585, medium: 940, large: 1245 }, img: "https://images.unsplash.com/photo-1604917869287-3ae73c77e227?w=400&q=80", type: "pizza", dietary: ["vegetarian"], inventory: "available" },
+        { id: "v5", name: "TROPICAL VEGGIE", name_am: "ትሮፒካል አትክልት", desc: "Tomato Sauce, Mozzarella Cheese, Onion, Capsicum, Pineapple", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ሽንኩርት፣ ቃሪያ፣ አናናስ", prices: { small: 585, medium: 905, large: 1390 }, img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80", type: "pizza", dietary: ["vegetarian"], inventory: "limited" },
+        { id: "v6", name: "VEGGIE SUPREME", name_am: "ልዩ አትክልት", desc: "Tomato Sauce, Mozzarella Cheese, Onion, Capsicum, Tomato & Olives", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ሽንኩርት፣ ቃሪያ፣ ቲማቲም እና ወይራ", prices: { small: 540, medium: 830, large: 1245 }, img: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&q=80", type: "pizza", dietary: ["vegetarian"], inventory: "available" }
+    ]},
+    "meat-pizza": { title: "Meat Pizza", title_am: "የስጋ ፒዛ", items: [
+        { id: "m1", name: "HAWAIIAN PIZZA", name_am: "ሃዋያን ፒዛ", desc: "Tomato Sauce, Mozzarella Cheese, Turkey Ham, Pineapple", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ የቱርክ ስጋ፣ አናናስ", prices: { small: 700, medium: 965, large: 1315 }, img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80", type: "pizza", popular: true, inventory: "available" },
+        { id: "m2", name: "ITALIAN MEAT", name_am: "ጣሊያናዊ ስጋ", desc: "Tomato Sauce, Mozzarella Cheese, Italian Meat Roll, Onion, Tomato, Green Chilli", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ጣሊያናዊ ስጋ፣ ሽንኩርት፣ ቲማቲም፣ አረንጓዴ ቃሪያ", prices: { small: 775, medium: 1070, large: 1535 }, img: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?w=400&q=80", type: "pizza", dietary: ["spicy"], inventory: "available" },
+        { id: "m3", name: "MEAT LOVERS", name_am: "የስጋ ወዳጆች", desc: "Tomato Sauce, Mozzarella Cheese, Pepperoni, Turkey Ham, Beef", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ፔፐሮኒ፣ የቱርክ ስጋ፣ የበሬ ስጋ", prices: { small: 765, medium: 1150, large: 1535 }, img: "https://images.unsplash.com/photo-1604917869287-3ae73c77e227?w=400&q=80", type: "pizza", popular: true, inventory: "available" },
+        { id: "m4", name: "PEPPERONI LOVERS", name_am: "ፔፐሮኒ ወዳጆች", desc: "Tomato Sauce, Mozzarella Cheese, Pepperoni", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ፔፐሮኒ", prices: { small: 685, medium: 965, large: 1410 }, img: "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&q=80", type: "pizza", popular: true, inventory: "available" },
+        { id: "m5", name: "BBQ DOUBLE MEAT", name_am: "ቢቢኪው ድርብ ስጋ", desc: "BBQ Sauce, Mozzarella Cheese, Turkey Ham, Beef", desc_am: "ቢቢኪው ሶስ፣ ሞዛሬላ፣ የቱርክ ስጋ፣ የበሬ ስጋ", prices: { small: 765, medium: 1150, large: 1535 }, img: "https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=400&q=80", type: "pizza", inventory: "available" },
+        { id: "m6", name: "SUPER SUPREME", name_am: "ሱፐር ሱፕሪም", desc: "Tomato Sauce, Mozzarella Cheese, Beef, Pepperoni, Turkey Ham, Onion, Capsicum, Olives", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ የበሬ ስጋ፣ ፔፐሮኒ፣ የቱርክ ስጋ᣿ ሽንኩርት፣ ቃሪያ፣ ወይራ", prices: { small: 795, medium: 1200, large: 1535 }, img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80", type: "pizza", popular: true, inventory: "available" }
+    ]},
+    "chicken-pizza": { title: "Chicken Pizza", title_am: "የዶሮ ፒዛ", items: [
+        { id: "c1", name: "HOT & SPICY CHICKEN", name_am: "ቅመም ዶሮ", desc: "Tomato Sauce, Mozzarella Cheese, Chicken, Onion, Tomato, Green Chilli", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ዶሮ፣ ሽንኩርት፣ ቲማቲም፣ አረንጓዴ ቃሪያ", prices: { small: 665, medium: 1055, large: 1550 }, img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80", type: "pizza", dietary: ["spicy"], popular: true, inventory: "available" },
+        { id: "c2", name: "SWEET CHILLI CHICKEN", name_am: "ጣፋጭ ቃሪያ ዶሮ", desc: "Tomato Sauce, Mozzarella Cheese, Chicken", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ዶሮ", prices: { small: 700, medium: 1070, large: 1505 }, img: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?w=400&q=80", type: "pizza", dietary: ["spicy"], inventory: "available" },
+        { id: "c3", name: "BBQ CHICKEN", name_am: "ቢቢኪው ዶሮ", desc: "BBQ Sauce, Mozzarella Cheese, Turkey Ham, Chicken", desc_am: "ቢቢኪው ሶስ፣ ሞዛሬላ፣ የቱርክ ስጋ፣ ዶሮ", prices: { small: 740, medium: 1165, large: 1535 }, img: "https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=400&q=80", type: "pizza", popular: true, inventory: "available" },
+        { id: "c4", name: "CHICKEN & MUSHROOM", name_am: "ዶሮ እና እንጉዳይ", desc: "Tomato Sauce, Mozzarella Cheese, Chicken, Mushroom", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ዶሮ፣ እንጉዳይ", prices: { small: 665, medium: 1055, large: 1505 }, img: "https://images.unsplash.com/photo-1604917869287-3ae73c77e227?w=400&q=80", type: "pizza", inventory: "available" },
+        { id: "c5", name: "CHICKEN FAJITA", name_am: "ዶሮ ፋጂታ", desc: "Tomato Sauce, Mozzarella Cheese, Chicken Fajita, Onion, Tomato", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ዶሮ ፋጂታ፣ ሽንኩርት፣ ቲማቲም", prices: { small: 665, medium: 1000, large: 1535 }, img: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?w=400&q=80", type: "pizza", inventory: "available" },
+        { id: "c6", name: "CHICKEN SUPREME", name_am: "ልዩ ዶሮ", desc: "Tomato Sauce, Mozzarella Cheese, Onion, Turkey Ham, Chicken, Capsicum", desc_am: "ቲማቲም ሶስ፣ ሞዛሬላ፣ ሽንኩርት፣ የቱርክ ስጋ፣ ዶሮ፣ ቃሪያ", prices: { small: 730, medium: 1130, large: 1535 }, img: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400&q=80", type: "pizza", inventory: "limited" }
+    ]},
+    "fasting-pizza": { title: "Fasting Pizza", title_am: "የጾም ፒዛ", items: [
+        { id: "f1", name: "TUNA PIZZA", name_am: "ቱና ፒዛ", desc: "Fasting Sauce, Tuna, Onion, Capsicum, Olives & Green Chilli", desc_am: "የጾም ሶስ፣ ቱና፣ ሽንኩርት፣ ቃሪያ፣ ወይራ እና አረንጓዴ ቃሪያ", prices: { small: 540, medium: 740, large: 1165 }, img: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?w=400&q=80", type: "pizza", tags: ["fasting"], dietary: ["fasting", "spicy"], popular: true, inventory: "available" },
+        { id: "f2", name: "VEGGIE BLAST", name_am: "አትክልት ፍንዳታ", desc: "Fasting Sauce, Pineapple, Onion, Olives, Capsicum, Tomato, Mushroom & Green Chilli", desc_am: "የጾም ሶስ፣ አናናስ፣ ሽንኩርት፣ ወይራ፣ ቃሪያ፣ ቲማቲም፣ እንጉዳይ እና አረንጓዴ ቃሪያ", prices: { small: 480, medium: 795, large: 1100 }, img: "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&q=80", type: "pizza", dietary: ["fasting", "spicy", "vegetarian"], inventory: "available" },
+        { id: "f3", name: "PINEAPPLE LOVERS", name_am: "አናናስ ወዳጆች", desc: "Fasting Sauce, Pineapple, Mushroom, Tomato & Green Chilli", desc_am: "የጾም ሶስ፣ አናናስ፣ እንጉዳይ፣ ቲማቲም እና አረንጓዴ ቃሪያ", prices: { small: 520, medium: 740, large: 1100 }, img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80", type: "pizza", dietary: ["fasting", "vegetarian"], inventory: "available" }
+    ]},
+    "sides": { title: "Sides & Pasta", title_am: "ተጨማሪዎች እና ፓስታ", items: [
+        { id: "s1", name: "FRENCH FRIES", name_am: "የተጠበሰ ድንች", desc: "Crispy golden fries", desc_am: "ወርቃማ ጥብስ ድንች", price: 355, img: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400&q=80", type: "flat", dietary: ["vegetarian", "fasting"], popular: true, inventory: "available" },
+        { id: "s2", name: "CHILLI FRIES", name_am: "ቅመም ድንች", desc: "Fries tossed in spicy chilli seasoning", desc_am: "የተጠበሰ ድንች በቃሪያ ቅመም", price: 450, img: "https://images.unsplash.com/photo-1585109649139-366815a0d713?w=400&q=80", type: "flat", dietary: ["spicy", "vegetarian", "fasting"], inventory: "available" },
+        { id: "s3", name: "CHEESY FRIES", name_am: "አይብ ድንች", desc: "Golden fries topped with melted cheese", desc_am: "በመሪቅ አይብ የተሸፈነ ድንች", price: 425, img: "https://images.unsplash.com/photo-1585109649139-366815a0d713?w=400&q=80", type: "flat", dietary: ["vegetarian"], inventory: "available" },
+        { id: "s4", name: "POTATO WEDGE", name_am: "ፖቴቶ ዌጅ", desc: "Crispy seasoned potato wedges", desc_am: "የተጠበሰ ቅመም ድንች ዌጅ", price: 360, img: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400&q=80", type: "flat", dietary: ["vegetarian"], inventory: "available" },
+        { id: "s5", name: "3 BONE-OUT WINGS", name_am: "3 ቦን-አውት ዊንግስ", desc: "3 Tender boneless chicken wings", desc_am: "3 ጣፋጭ የአጥንት የሌለው ዶሮ ዊንግስ", price: 700, img: "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "s6", name: "6 BONE-OUT WINGS", name_am: "6 ቦን-አውት ዊንግስ", desc: "6 Tender boneless chicken wings", desc_am: "6 ጣፋጭ የአጥንት የሌለው ዶሮ ዊንግስ", price: 1300, img: "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400&q=80", type: "flat", popular: true, inventory: "available" },
+        { id: "s7", name: "BUFFALO CHICKEN WINGS", name_am: "ቡፋሎ ዶሮ ዊንግስ", desc: "Spicy buffalo chicken wings", desc_am: "በቡፋሎ ሶስ የተሰራ ቅመም ዶሮ ዊንግስ", price: 1430, img: "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=400&q=80", type: "flat", dietary: ["spicy"], inventory: "available" },
+        { id: "s8", name: "PLAIN GARLIC BREAD", name_am: "ጋርሊክ ብሬድ", desc: "Toasted bread with garlic butter", desc_am: "የነጭ ሽንኩርት ቅቤ ዳቦ", price: 295, img: "https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?w=400&q=80", type: "flat", dietary: ["vegetarian"], inventory: "available" },
+        { id: "s9", name: "SPICY GARLIC BREAD", name_am: "ቅመም ጋርሊክ ብሬድ", desc: "Garlic bread topped with spicy chillies", desc_am: "የነጭ ሽንኩርት ዳቦ በቃሪያ ቅመም", price: 445, img: "https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?w=400&q=80", type: "flat", dietary: ["spicy", "vegetarian"], inventory: "available" },
+        { id: "s10", name: "CHEESY GARLIC BREAD", name_am: "አይብ ጋርሊክ ብሬድ", desc: "Garlic bread loaded with melted cheese", desc_am: "የነጭ ሽንኩርት ዳቦ በሞዛሬላ አይብ", price: 445, img: "https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?w=400&q=80", type: "flat", dietary: ["vegetarian"], popular: true, inventory: "available" },
+        { id: "s11", name: "ALFREDO PASTA", name_am: "አልፍሬዶ ፓስታ", desc: "Creamy Alfredo sauce pasta", desc_am: "በክሬሚ አልፍሬዶ ሶስ የተሰራ ፓስታ", price: 885, img: "https://images.unsplash.com/photo-1621996346565-e3d5d6281292?w=400&q=80", type: "flat", popular: true, inventory: "available" },
+        { id: "s12", name: "HERSHEY'S CHOCO-CHIP COOKIES", name_am: "ኸርሺስ ቾኮ-ቺፕ ኩኪስ", desc: "Warm freshly baked chocolate chip cookies", desc_am: "ትኩስ የኸርሺስ ቸኮሌት ኩኪስ", price: 1930, img: "https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=400&q=80", type: "flat", inventory: "available" }
+    ]},
+    "specials": { title: "Specials & Melts", title_am: "ልዩ ቅናሾች እና መልትስ", items: [
+        { id: "sp1", name: "BIG BOSS PIZZA", name_am: "ቢግ ቦስ ፒዛ", desc: "Gigantic rectangular party pizza loaded with multiple toppings", desc_am: "ግዙፍ አራት ማዕዘን ፒዛ በብዙ አይነት ተወዳጅ ይዘቶች", price: 5990, img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80", type: "flat", popular: true, inventory: "available" },
+        { id: "sp2", name: "MELTS SPICY CHICKEN", name_am: "መልትስ ቅመም ዶሮ", desc: "Crispy folded crust loaded with spicy chicken & cheese", desc_am: "የተጠበሰ ዳቦ በቅመም ዶሮ እና አይብ", price: 1220, img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&q=80", type: "flat", dietary: ["spicy"], inventory: "available" },
+        { id: "sp3", name: "MELTS MEAT LOVERS", name_am: "መልትስ ስጋ ወዳጆች", desc: "Crispy folded crust loaded with meats & melted cheese", desc_am: "የተጠበሰ ዳቦ በስጋ እና በሞዛሬላ አይብ", price: 1270, img: "https://images.unsplash.com/photo-1604917869287-3ae73c77e227?w=400&q=80", type: "flat", popular: true, inventory: "available" },
+        { id: "sp4", name: "MELTS PEPPERONI LOVERS", name_am: "መልትስ ፔፐሮኒ", desc: "Crispy folded crust loaded with pepperoni & cheese", desc_am: "የተጠበሰ ዳቦ በፔፐሮኒ እና አይብ", price: 1270, img: "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "sp5", name: "VEGGIE CALZONE", name_am: "የአትክልት ካልዞን", desc: "Folded pizza stuffed with fresh vegetables & cheese", desc_am: "በአትክልት እና አይብ የተሞላ የታጠፈ ፒዛ", price: 520, img: "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&q=80", type: "flat", dietary: ["vegetarian"], inventory: "available" },
+        { id: "sp6", name: "BEEF CALZONE", name_am: "የበሬ ስጋ ካልዞን", desc: "Folded pizza stuffed with beef & cheese", desc_am: "በበሬ ስጋ እና አይብ የተሞላ የታጠፈ ፒዛ", price: 635, img: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "sp7", name: "CHICKEN CALZONE", name_am: "የዶሮ ካልዞን", desc: "Folded pizza stuffed with chicken & cheese", desc_am: "በዶሮ ስጋ እና አይብ የተሞላ የታጠፈ ፒዛ", price: 635, img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80", type: "flat", inventory: "available" }
+    ]},
+    "drinks": { title: "Drinks", title_am: "መጠጦች", items: [
+        { id: "d1", name: "COCA-COLA 300ML", name_am: "ኮካ ኮላ 300ml", desc: "300ml Ice cold Coca-Cola bottle", desc_am: "300ml ቀዝቃዛ ኮካ ኮላ", price: 100, img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d2", name: "COCA-COLA 500ML", name_am: "ኮካ ኮላ 500ml", desc: "500ml Ice cold Coca-Cola bottle", desc_am: "500ml ቀዝቃዛ ኮካ ኮላ", price: 140, img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80", type: "flat", popular: true, inventory: "available" },
+        { id: "d3", name: "SPRITE 300ML", name_am: "ስፕራይት 300ml", desc: "300ml Crisp Sprite bottle", desc_am: "300ml ቀዝቃዛ ስፕራይት", price: 100, img: "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d4", name: "SPRITE 500ML", name_am: "ስፕራይት 500ml", desc: "500ml Crisp Sprite bottle", desc_am: "500ml ቀዝቃዛ ስፕራይት", price: 140, img: "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d5", name: "FANTA ORANGE 300ML", name_am: "ፋንታ ብርቱካን 300ml", desc: "300ml Fanta Orange bottle", desc_am: "300ml የብርቱካን ፋንታ", price: 100, img: "https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d6", name: "FANTA ORANGE 500ML", name_am: "ፋንታ ብርቱካን 500ml", desc: "500ml Fanta Orange bottle", desc_am: "500ml የብርቱካን ፋንታ", price: 140, img: "https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d7", name: "FANTA PINEAPPLE 300ML", name_am: "ፋንታ አናናስ 300ml", desc: "300ml Fanta Pineapple bottle", desc_am: "300ml የአናናስ ፋንታ", price: 100, img: "https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d8", name: "FANTA PINEAPPLE 500ML", name_am: "ፋንታ አናናስ 500ml", desc: "500ml Fanta Pineapple bottle", desc_am: "500ml የአናናስ ፋንታ", price: 140, img: "https://images.unsplash.com/photo-1624517452488-04869289c4ca?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d9", name: "NOVIDA 300ML", name_am: "ኖቪዳ 300ml", desc: "300ml Novida apple malt drink", desc_am: "300ml ኖቪዳ", price: 100, img: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d10", name: "AMBO SPARKLING 500ML", name_am: "አምቦ ውሀ 500ml", desc: "500ml Ambo mineral sparkling water", desc_am: "500ml አምቦ ፍል ውሀ", price: 110, img: "https://images.unsplash.com/photo-1560023907-5f339617ea30?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d11", name: "AMBO FLAVOR 500ML", name_am: "አምቦ ፍላቨር 500ml", desc: "500ml Flavored Ambo mineral water", desc_am: "500ml ጣዕም ያለው አምቦ ውሀ", price: 140, img: "https://images.unsplash.com/photo-1560023907-5f339617ea30?w=400&q=80", type: "flat", inventory: "available" },
+        { id: "d12", name: "BOTTLED WATER 500ML", name_am: "ታሸገ ውሀ 500ml", desc: "500ml Purified drinking water", desc_am: "500ml የታሸገ የጠረጴዛ ውሀ", price: 70, img: "https://images.unsplash.com/photo-1560023907-5f339617ea30?w=400&q=80", type: "flat", inventory: "available" }
+    ]}
+};
+
+const PAYMENT_ACCOUNTS = { telebirr: { number: "0905909090", name: "Pizza Hut Telebirr" }, cbe: { number: "0987878787", name: "Pizza Hut CBE Birr" }, chapa: { number: "0989", name: "Pizza Hut Chapa" }, cash: { number: "Pay to Waiter", name: "Cash Payment at Table" } };
+const KITCHEN_TELEGRAM = "MO76k7", KITCHEN_PHONE = "0923845344";
+const VAT = 0.15, SERVICE = 0.10;
+
+// ==================== STATE ====================
+let currentLang = 'en', currentRole = 'customer', currentCategory = "veg-pizza", currentSort = 'default';
+let activeModalItem = null, selectedSize = 'medium', selectedCrust = 'regular', modalQty = 1;
+let cart = [], selectedPayment = null, editingItemId = null, editingCategory = null;
+let orders = [], orderCounter = 0, orderStatus = 'pending'; // pending, accepted, preparing, ready
+
+// Load orders from localStorage
+function loadOrders() {
+    try {
+        const saved = localStorage.getItem('ph_orders');
+        if (saved) orders = JSON.parse(saved);
+        else orders = [];
+        const counter = localStorage.getItem('ph_order_counter');
+        if (counter) orderCounter = parseInt(counter);
+    } catch(e) { orders = []; }
+}
+function saveOrders() {
+    try {
+        localStorage.setItem('ph_orders', JSON.stringify(orders));
+        localStorage.setItem('ph_order_counter', orderCounter.toString());
+    } catch(e) {}
+}
+loadOrders();
+
+// ==================== LANGUAGE ====================
+function switchLanguage(lang) {
+    currentLang = lang;
+    document.querySelectorAll('.lang-toggle').forEach(b => b.classList.remove('active-lang'));
+    document.getElementById(`lang-${lang}`).classList.add('active-lang');
+    renderAll();
+    if (document.getElementById('view-cart').classList.contains('active')) renderCart();
+}
+
+function getItemName(item) { return currentLang === 'am' ? (item.name_am || item.name) : item.name; }
+function getItemDesc(item) { return currentLang === 'am' ? (item.desc_am || item.desc) : item.desc; }
+function getCatTitle(cat) { return currentLang === 'am' ? (cat.title_am || cat.title) : cat.title; }
+
+// ==================== ROLE MANAGEMENT ====================
+function switchRole(role) {
+    currentRole = role;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.role-btn[data-role="${role}"]`).classList.add('active');
+    
+    // Show/hide utility bar based on role
+    const utilityBar = document.getElementById('utility-bar');
+    if (role === 'customer') {
+        utilityBar.style.display = 'flex';
+    } else {
+        utilityBar.style.display = 'none';
+    }
+    
+    // Show/hide bottom nav
+    const bottomNav = document.getElementById('bottom-nav');
+    if (role === 'customer') {
+        bottomNav.style.display = 'flex';
+    } else {
+        bottomNav.style.display = 'none';
+        document.getElementById('floating-tray-btn').classList.remove('visible');
+    }
+    
+    // Hide all views first
+    document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+    
+    if (role === 'customer') {
+        document.getElementById('view-home').classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('nav-home').classList.add('active');
+        updateNavPill();
+        renderAll();
+    } else if (role === 'kitchen') {
+        document.getElementById('view-kitchen').classList.add('active');
+        renderKitchenDashboard();
+    } else if (role === 'admin') {
+        document.getElementById('view-admin').classList.add('active');
+        renderAdminMenu();
+        switchAdminTab('menu');
+    }
+}
+
+// ==================== NAVIGATION ====================
+function updateNavPill() {
+    const active = document.querySelector('.nav-item.active');
+    if (!active) return;
+    const pill = document.getElementById('liquid-pill');
+    pill.style.width = `${active.offsetWidth}px`;
+    pill.style.transform = `translateX(${active.offsetLeft}px)`;
+}
+
+function scrollCategories(amt) {
+    document.getElementById('category-scroll-container').scrollBy({ left: amt, behavior: 'smooth' });
+}
+
+function navigateTo(view) {
+    if (currentRole !== 'customer') return;
+    document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (view === 'home') {
+        document.getElementById('view-home').classList.add('active');
+        document.getElementById('nav-home').classList.add('active');
+    } else if (view === 'cart') {
+        document.getElementById('view-cart').classList.add('active');
+        document.getElementById('nav-cart').classList.add('active');
+        renderCart();
+    } else if (view === 'tracker') {
+        document.getElementById('view-tracker').classList.add('active');
+        document.getElementById('nav-tracker').classList.add('active');
+        updateTrackerStatus();
+    }
+    updateNavPill();
+}
+
+// ==================== TRACKER ====================
+function updateTrackerStatus() {
+    const steps = document.querySelectorAll('#tracker-timeline .timeline-step');
+    steps.forEach(s => s.classList.remove('active', 'preparing'));
+    
+    if (orderStatus === 'pending') {
+        steps[0].classList.add('active');
+        document.getElementById('tracker-title').textContent = 'Waiting for Kitchen...';
+    } else if (orderStatus === 'accepted') {
+        steps[0].classList.add('active');
+        steps[1].classList.add('active');
+        document.getElementById('tracker-title').textContent = 'Kitchen Accepted Your Order!';
+    } else if (orderStatus === 'preparing') {
+        steps[0].classList.add('active');
+        steps[1].classList.add('active');
+        steps[2].classList.add('active');
+        steps[2].classList.add('preparing');
+        document.getElementById('tracker-title').textContent = '🍳 Preparing Your Order...';
+    } else if (orderStatus === 'ready') {
+        steps.forEach(s => s.classList.add('active'));
+        document.getElementById('tracker-title').textContent = '✅ Order Ready for Pickup!';
+        document.getElementById('tracker-estimate').textContent = '🎉 Your order is ready!';
+    }
+}
+
+// ==================== CATEGORY & SORT ====================
+function renderCategoryBar() {
+    document.getElementById('categories-bar').innerHTML = Object.entries(MENU_DATA).map(([k, v]) =>
+        `<div class="cat-pill ${k === currentCategory ? 'active' : ''}" onclick="selectCategory('${k}')">${getCatTitle(v)}</div>`
+    ).join('');
+}
+
+function selectCategory(key) {
+    currentCategory = key;
+    document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+    const pill = document.querySelector(`[onclick="selectCategory('${key}')"]`);
+    if (pill) { pill.classList.add('active'); pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); }
+    document.getElementById('current-category-title').textContent = getCatTitle(MENU_DATA[key]);
+    document.getElementById('menu-search').value = '';
+    currentSort = 'default';
+    updateSortUI();
+    renderProducts();
+}
+
+function toggleSortDropdown() {
+    const dd = document.getElementById('sort-dropdown');
+    const btn = document.getElementById('sort-btn');
+    dd.classList.toggle('show');
+    btn.classList.toggle('open');
+}
+
+function selectSort(sort, el) {
+    currentSort = sort;
+    document.querySelectorAll('.sort-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('sort-dropdown').classList.remove('show');
+    document.getElementById('sort-btn').classList.remove('open');
+    updateSortUI();
+    renderProducts();
+}
+
+function updateSortUI() {
+    const labels = { 'default': 'Popular', 'price-asc': 'Price: Low to High', 'price-desc': 'Price: High to Low', 'name-asc': 'A to Z' };
+    document.getElementById('sort-label').textContent = labels[currentSort] || 'Popular';
+}
+
+function getSortedItems(items) {
+    const sorted = [...items];
+    switch (currentSort) {
+        case 'price-asc': sorted.sort((a,b) => (a.type==='pizza'?a.prices.medium:a.price) - (b.type==='pizza'?b.prices.medium:b.price)); break;
+        case 'price-desc': sorted.sort((a,b) => (b.type==='pizza'?b.prices.medium:b.price) - (a.type==='pizza'?a.prices.medium:a.price)); break;
+        case 'name-asc': sorted.sort((a,b) => getItemName(a).localeCompare(getItemName(b))); break;
+        default: sorted.sort((a,b) => { if(a.popular && !b.popular) return -1; if(!a.popular && b.popular) return 1; return getItemName(a).localeCompare(getItemName(b)); });
+    }
+    return sorted;
+}
+
+// ==================== PRODUCTS ====================
+function renderProducts() {
+    const cat = MENU_DATA[currentCategory];
+    if (!cat) return;
+    const grid = document.getElementById('products-target-grid');
+    grid.innerHTML = getSortedItems(cat.items).map(item => {
+        const price = item.type === 'pizza' ? `Br ${item.prices.medium}` : `Br ${item.price}`;
+        const soldOut = item.inventory === 'sold-out' ? 'sold-out' : '';
+        const badge = item.popular ? '<div class="product-badge">★ Popular</div>' : '';
+        const invBadge = item.inventory === 'sold-out' ? '<div class="inventory-badge badge-sold-out">Sold Out</div>' : item.inventory === 'limited' ? '<div class="inventory-badge badge-limited">Limited</div>' : '';
+        const diet = item.dietary ? item.dietary.map(d => {
+            if (d === 'spicy') return '<div class="dietary-icon">🌶️</div>';
+            if (d === 'vegetarian') return '<div class="dietary-icon">🌱</div>';
+            if (d === 'fasting') return '<div class="dietary-icon">✝️</div>';
+            return '';
+        }).join('') : '';
+        return `<div class="product-card ${soldOut}" ${item.inventory !== 'sold-out' ? `onclick="openModal('${currentCategory}','${item.id}')"` : ''} id="card-${item.id}">
+            <div class="img-wrapper">${badge}${invBadge}${diet ? `<div class="dietary-badges">${diet}</div>` : ''}<img src="${item.img}" alt="${getItemName(item)}" loading="lazy"></div>
+            <div class="product-info"><h4>${getItemName(item)}</h4><p>${getItemDesc(item)}</p><div class="product-price-row"><span class="product-price">${price}</span>${item.inventory !== 'sold-out' ? '<i class="fa-solid fa-circle-plus add-icon-btn"></i>' : '<span style="color:#EF4444;font-size:10px;">N/A</span>'}</div></div>
+        </div>`;
+    }).join('');
+}
+
+function searchProducts(term) {
+    const grid = document.getElementById('products-target-grid');
+    let results = [];
+    Object.entries(MENU_DATA).forEach(([catKey, cat]) => {
+        cat.items.forEach(item => {
+            const n = getItemName(item).toLowerCase(), d = getItemDesc(item).toLowerCase();
+            if (n.includes(term) || d.includes(term) || (item.tags && item.tags.some(t => t.includes(term)))) {
+                results.push({ item, cat: catKey });
+            }
+        });
+    });
+    if (!results.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--color-text-muted);">No items found</div>';
+        return;
+    }
+    grid.innerHTML = getSortedItems(results.map(r => r.item)).map(item => {
+        const price = item.type === 'pizza' ? `Br ${item.prices.medium}` : `Br ${item.price}`;
+        const cat = results.find(r => r.item.id === item.id)?.cat || currentCategory;
+        return `<div class="product-card" onclick="openModal('${cat}','${item.id}')"><div class="img-wrapper"><img src="${item.img}" alt="${getItemName(item)}"></div><div class="product-info"><h4>${getItemName(item)}</h4><p>${getItemDesc(item)}</p><div class="product-price-row"><span class="product-price">${price}</span><i class="fa-solid fa-circle-plus add-icon-btn"></i></div></div></div>`;
+    }).join('');
+}
+
+// ==================== MODAL ====================
+function openModal(catKey, itemId) {
+    if (currentRole !== 'customer') return;
+    const item = MENU_DATA[catKey].items.find(i => i.id === itemId);
+    if (!item || item.inventory === 'sold-out') return;
+    activeModalItem = item; modalQty = 1; selectedSize = 'medium'; selectedCrust = 'regular';
+    document.getElementById('modal-item-name').textContent = getItemName(item);
+    document.getElementById('modal-item-img').src = item.img;
+    document.getElementById('modal-item-img').className = 'modal-img size-medium';
+    document.getElementById('modal-item-desc').textContent = getItemDesc(item);
+    document.getElementById('modal-qty-display').textContent = modalQty;
+    document.getElementById('crust-options-container').style.display = item.type === 'pizza' ? 'block' : 'none';
+    if (item.type === 'pizza') resetCrust();
+    document.getElementById('pizza-options-container').innerHTML = item.type === 'pizza' ?
+        `<div class="options-group-title">Select Size</div><div class="selector-row">
+            <div class="selector-btn" id="size-small" onclick="setSize('small')">Small<br>Br ${item.prices.small}</div>
+            <div class="selector-btn active" id="size-medium" onclick="setSize('medium')">Medium<br>Br ${item.prices.medium}</div>
+            <div class="selector-btn" id="size-large" onclick="setSize('large')">Large<br>Br ${item.prices.large}</div>
+        </div>` : '';
+    updateModalPrice();
+    document.getElementById('product-modal').style.display = 'flex';
+}
+
+function closeProductModal() { document.getElementById('product-modal').style.display = 'none'; }
+
+function setSize(size) {
+    selectedSize = size;
+    document.querySelectorAll('.selector-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`size-${size}`)?.classList.add('active');
+    document.getElementById('modal-item-img').className = `modal-img size-${size}`;
+    updateModalPrice();
+}
+
+function setCrust(crust) {
+    selectedCrust = crust;
+    document.querySelectorAll('.crust-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`crust-${crust}`)?.classList.add('active');
+    updateModalPrice();
+}
+
+function resetCrust() {
+    document.querySelectorAll('.crust-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('crust-regular')?.classList.add('active');
+    selectedCrust = 'regular';
+}
+
+function mutateModalQuantity(d) {
+    if (modalQty + d >= 1 && modalQty + d <= 10) { modalQty += d; document.getElementById('modal-qty-display').textContent = modalQty; updateModalPrice(); }
+}
+
+function calcPrice(item, size) {
+    let p = item.type === 'pizza' ? item.prices[size] : item.price;
+    if (item.type === 'pizza' && selectedCrust === 'stuffed') p = size === 'medium' ? 795 : 1040;
+    return p;
+}
+
+function updateModalPrice() {
+    if (!activeModalItem) return;
+    document.getElementById('modal-total-price-display').textContent = (calcPrice(activeModalItem, selectedSize) * modalQty).toFixed(2);
+}
+
+function addModalItemToCart() {
+    const unit = calcPrice(activeModalItem, selectedSize);
+    const cartItem = {
+        id: activeModalItem.id + (activeModalItem.type === 'pizza' ? `-${selectedSize}-${selectedCrust}` : `-flat-${Date.now()}`),
+        name: getItemName(activeModalItem), nameEn: activeModalItem.name, nameAm: activeModalItem.name_am || activeModalItem.name,
+        size: activeModalItem.type === 'pizza' ? selectedSize : null,
+        crust: activeModalItem.type === 'pizza' ? selectedCrust : null,
+        unitPrice: unit, quantity: modalQty, img: activeModalItem.img
+    };
+    const existing = cart.findIndex(c => c.id === cartItem.id);
+    existing > -1 ? cart[existing].quantity += modalQty : cart.push(cartItem);
+    const card = document.getElementById(`card-${activeModalItem.id}`);
+    if (card) flyToCart(activeModalItem.img, card);
+    closeProductModal(); updateBadge(); showToast('Added to tray!');
+}
+
+function flyToCart(imgSrc, sourceEl) {
+    const rect = sourceEl.getBoundingClientRect();
+    const tray = document.getElementById('floating-tray-btn');
+    const trayRect = tray.getBoundingClientRect();
+    const flyImg = document.createElement('img');
+    flyImg.src = imgSrc; flyImg.className = 'flying-item';
+    flyImg.style.cssText = `left:${rect.left+rect.width/2-22}px;top:${rect.top+rect.height/2-22}px;position:fixed;`;
+    document.body.appendChild(flyImg);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            flyImg.style.left = `${trayRect.left+trayRect.width/2-22}px`;
+            flyImg.style.top = `${trayRect.top+trayRect.height/2-22}px`;
+            flyImg.style.transform = 'scale(0.2)'; flyImg.style.opacity = '0.3';
+        });
+    });
+    setTimeout(() => flyImg.remove(), 550);
+}
+
+// ==================== CART ====================
+function updateBadge() {
+    const total = cart.reduce((s, i) => s + i.quantity, 0);
+    const badge = document.getElementById('cart-badge-count');
+    const fb = document.getElementById('floating-tray-btn');
+    const fbd = document.getElementById('floating-badge-count');
+    if (total > 0) {
+        badge.textContent = total; badge.style.display = 'block';
+        fbd.textContent = total; fb.classList.add('visible');
+    } else {
+        badge.style.display = 'none'; fb.classList.remove('visible');
+    }
+}
+
+function renderCart() {
+    const root = document.getElementById('cart-items-root');
+    const fs = document.getElementById('cart-form-section');
+    const cb = document.getElementById('btn-clear-cart');
+    if (!cart.length) {
+        cb.style.display = 'none'; fs.style.display = 'none'; selectedPayment = null;
+        document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('selected'));
+        document.getElementById('payment-account-display').classList.remove('show');
+        root.innerHTML = `<div class="empty-cart-state"><div class="empty-cart-icon">🛒</div><h3>Your Tray is Empty</h3><p>Browse our delicious menu!</p><button class="btn-browse-menu" onclick="navigateTo('home')"><i class="fa-solid fa-pizza-slice"></i> Menu</button><div class="popular-section"><h3>🔥 Popular Picks</h3>${popularHTML()}</div></div>`;
+        return;
+    }
+    cb.style.display = 'flex'; fs.style.display = 'block';
+    let gt = 0;
+    root.innerHTML = cart.map((item, i) => {
+        const it = item.unitPrice * item.quantity; gt += it;
+        const displayName = currentLang === 'am' ? (item.nameAm || item.name) : (item.nameEn || item.name);
+        return `<div class="cart-item"><div class="cart-item-img-wrapper"><img src="${item.img}" alt="${displayName}">${item.size ? `<div class="cart-item-size-badge">${item.size.charAt(0).toUpperCase()}</div>` : ''}</div><div class="cart-item-info"><div class="cart-item-title">${displayName} ${item.size?.toUpperCase()||''}${item.crust&&item.crust!=='regular'?`<span class="cart-item-crust-tag">${item.crust}</span>`:''}</div><div class="cart-item-meta">Br ${item.unitPrice} each</div><div class="cart-item-price">Br ${it.toFixed(2)}</div></div><div class="qty-selector"><button class="qty-btn" onclick="updateQty(${i},-1)">−</button><span class="qty-value">${item.quantity}</span><button class="qty-btn" onclick="updateQty(${i},1)">+</button></div><button class="remove-btn" onclick="removeItem(${i})"><i class="fa-solid fa-trash"></i></button></div>`;
+    }).join('');
+    const vat = gt * VAT, svc = gt * SERVICE, total = gt + vat + svc;
+    document.getElementById('summary-subtotal').textContent = `Br ${gt.toFixed(2)}`;
+    document.getElementById('summary-vat').textContent = `Br ${vat.toFixed(2)}`;
+    document.getElementById('summary-service').textContent = `Br ${svc.toFixed(2)}`;
+    document.getElementById('summary-total').textContent = `Br ${total.toFixed(2)}`;
+    updateSplitDisplay();
+}
+
+function updateSplitDisplay() {
+    const sc = parseInt(document.getElementById('split-count').value) || 1;
+    const gt = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+    const total = gt * (1 + VAT + SERVICE);
+    const sp = document.getElementById('split-per-person');
+    if (sp) sp.textContent = `Br ${(total / sc).toFixed(2)}/person`;
+}
+
+function popularHTML() {
+    const items = [];
+    Object.entries(MENU_DATA).forEach(([k, v]) => v.items.forEach(item => {
+        if (item.popular && item.inventory !== 'sold-out') items.push({ ...item, cat: k });
+    }));
+    return items.sort(() => 0.5 - Math.random()).slice(0, 3).map(item => {
+        const p = item.type === 'pizza' ? `Br ${item.prices.medium}` : `Br ${item.price}`;
+        return `<div class="popular-item" onclick="openModal('${item.cat}','${item.id}');navigateTo('home');"><img src="${item.img}" alt=""><div class="popular-item-info"><h4>${getItemName(item)}</h4><span>${p}</span></div><i class="fa-solid fa-circle-plus"></i></div>`;
+    }).join('');
+}
+
+function updateQty(i, d) {
+    cart[i].quantity + d > 0 ? cart[i].quantity += d : cart.splice(i, 1);
+    updateBadge(); renderCart();
+}
+function removeItem(i) { cart.splice(i, 1); updateBadge(); renderCart(); }
+function clearCart() {
+    if (!cart.length) return;
+    if (confirm('Remove all items?')) { cart = []; updateBadge(); renderCart(); showToast('Tray cleared'); }
+}
+
+// ==================== PAYMENT ====================
+function selectPayment(method, el) {
+    selectedPayment = method;
+    document.querySelectorAll('.payment-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('payment-error-msg').classList.remove('show');
+    const display = document.getElementById('payment-account-display');
+    const acc = PAYMENT_ACCOUNTS[method];
+    document.getElementById('display-account-number').textContent = acc.number;
+    document.getElementById('display-account-name').textContent = acc.name;
+    document.querySelector('.copy-account-btn').style.display = method === 'cash' ? 'none' : 'inline-flex';
+    display.classList.add('show');
+}
+
+function copyAccountNumber() {
+    if (!selectedPayment || selectedPayment === 'cash') return;
+    navigator.clipboard.writeText(PAYMENT_ACCOUNTS[selectedPayment].number).then(() => showToast('Copied!'));
+}
+
+// ==================== ORDER SUBMISSION ====================
+function submitOrderToTelegram() {
+    if (!cart.length) return;
+    const tableInput = document.getElementById('table-number-input');
+    const tableVal = tableInput.value.trim();
+    const tableError = document.getElementById('table-error-msg');
+    if (!tableVal) {
+        tableInput.classList.add('error');
+        tableError.classList.add('show');
+        showToast('Please enter a table number');
+        return;
+    } else {
+        tableInput.classList.remove('error');
+        tableError.classList.remove('show');
+    }
+    if (!selectedPayment) {
+        document.getElementById('payment-error-msg').classList.add('show');
+        showToast('Please select a payment method');
+        return;
+    } else {
+        document.getElementById('payment-error-msg').classList.remove('show');
+    }
+
+    const branch = document.getElementById('branch-select').value;
+    const table = tableVal;
+    const instr = document.getElementById('extra-instructions-input').value.trim();
+    const sc = parseInt(document.getElementById('split-count').value) || 1;
+    orderCounter++;
+    const orderNo = orderCounter.toString().padStart(2, '0');
+    let gt = 0, summary = `🍕 *NEW ORDER*\n\n📋 #${orderNo}\n📍 ${branch}\n🪑 Table ${table}\n${sc > 1 ? `👥 Split: ${sc}p\n` : ''}───────────────────\n`;
+    const orderItems = [];
+    cart.forEach((item, i) => {
+        const it = item.unitPrice * item.quantity; gt += it;
+        const name = item.nameEn || item.name;
+        summary += `${i+1}. *${name}*${item.size ? ` [${item.size.toUpperCase()}]` : ''}${item.crust && item.crust !== 'regular' ? ` (${item.crust})` : ''} x${item.quantity} - Br ${it.toFixed(2)}\n`;
+        orderItems.push({ name, size: item.size, crust: item.crust, quantity: item.quantity, price: item.unitPrice, total: it });
+    });
+    const vat = gt * VAT, svc = gt * SERVICE, total = gt + vat + svc;
+    if (instr) summary += `───────────────────\n📝 ${instr}\n`;
+    summary += `───────────────────\n💰 Subtotal: Br ${gt.toFixed(2)}\n🧾 VAT: Br ${vat.toFixed(2)}\n🍽️ Service: Br ${svc.toFixed(2)}\n💵 *TOTAL: Br ${total.toFixed(2)}*\n${sc > 1 ? `👤 Per person: Br ${(total/sc).toFixed(2)}\n` : ''}\n💳 *${selectedPayment.toUpperCase()}*${selectedPayment !== 'cash' ? ` - ${PAYMENT_ACCOUNTS[selectedPayment].number}` : ''}\n\n🧑‍🍳 @${KITCHEN_TELEGRAM} | 📞 ${KITCHEN_PHONE}`;
+    
+    // Create order object
+    const newOrder = {
+        id: Date.now(),
+        orderNo: orderNo,
+        branch: branch,
+        table: table,
+        items: orderItems,
+        subtotal: gt,
+        vat: vat,
+        service: svc,
+        total: total,
+        split: sc,
+        payment: selectedPayment,
+        instructions: instr,
+        status: 'pending', // pending, accepted, preparing, ready
+        timestamp: new Date().toISOString(),
+        customer: 'Walk-in'
+    };
+    orders.unshift(newOrder);
+    saveOrders();
+    
+    // Open Telegram
+    window.open(`https://t.me/${KITCHEN_TELEGRAM}?text=${encodeURIComponent(summary)}`, '_blank');
+    showToast('Order sent!');
+    
+    // Reset cart and show tracker
+    orderStatus = 'pending';
+    cart = [];
+    updateBadge();
+    navigateTo('tracker');
+    updateTrackerStatus();
+    
+    // Notify kitchen if kitchen dashboard is open
+    if (currentRole === 'kitchen') renderKitchenDashboard();
+}
+
+// ==================== KITCHEN DASHBOARD ====================
+function renderKitchenDashboard() {
+    const container = document.getElementById('kitchen-orders-container');
+    if (!orders.length) {
+        container.innerHTML = `<div class="empty-cart-state"><div class="empty-cart-icon">🧑‍🍳</div><h3>No Orders Yet</h3><p>Waiting for customer orders...</p></div>`;
+        return;
+    }
+    container.innerHTML = orders.map(order => {
+        const statusClass = order.status === 'pending' ? 'pending' : order.status === 'preparing' ? 'preparing' : 'ready';
+        const statusLabel = order.status === 'pending' ? '⏳ Pending' : order.status === 'accepted' ? '✅ Accepted' : order.status === 'preparing' ? '🔨 Preparing' : '✅ Ready';
+        const itemsList = order.items.map(it => `${it.name}${it.size ? ` (${it.size})` : ''} x${it.quantity}`).join(', ');
+        const actions = order.status === 'pending' ? 
+            `<button class="btn-accept" onclick="updateOrderStatus(${order.id},'accepted')">Accept</button>` :
+            order.status === 'accepted' ?
+            `<button class="btn-prepare" onclick="updateOrderStatus(${order.id},'preparing')">Preparing</button>` :
+            order.status === 'preparing' ?
+            `<button class="btn-ready" onclick="updateOrderStatus(${order.id},'ready')">Ready</button>` :
+            `<span style="color:var(--color-success);font-weight:700;">✅ Completed</span>`;
+        return `<div class="order-card">
+            <div class="order-header"><span class="order-id">#${order.orderNo} - Table ${order.table}</span><span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span></div>
+            <div class="order-items">${itemsList}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span class="order-total">Total: Br ${order.total.toFixed(2)}</span>
+                <span class="order-status-badge ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="order-actions">${actions}</div>
+        </div>`;
+    }).join('');
+}
+
+function updateOrderStatus(orderId, status) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    order.status = status;
+    saveOrders();
+    renderKitchenDashboard();
+    
+    // If this is the current customer's order, update tracker
+    if (currentRole === 'customer') {
+        orderStatus = status;
+        if (document.getElementById('view-tracker').classList.contains('active')) {
+            updateTrackerStatus();
+        }
+    }
+    showToast(`Order #${order.orderNo} updated to ${status}`);
+}
+
+// ==================== ADMIN DASHBOARD ====================
+let adminCurrentTab = 'menu';
+let adminReportTab = 'daily';
+
+function switchAdminTab(tab) {
+    adminCurrentTab = tab;
+    document.querySelectorAll('#admin-tabs .admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`#admin-tabs .admin-tab[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById('admin-menu-panel').style.display = tab === 'menu' ? 'block' : 'none';
+    document.getElementById('admin-reports-panel').style.display = tab === 'reports' ? 'block' : 'none';
+    if (tab === 'menu') renderAdminMenu();
+    if (tab === 'reports') renderAdminReport(adminReportTab);
+}
+
+function switchReportTab(tab) {
+    adminReportTab = tab;
+    document.querySelectorAll('#admin-reports-panel .admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`#admin-reports-panel .admin-tab[data-report="${tab}"]`).classList.add('active');
+    renderAdminReport(tab);
+}
+
+function renderAdminMenu() {
+    const container = document.getElementById('admin-menu-list');
+    let html = '';
+    Object.entries(MENU_DATA).forEach(([catKey, cat]) => {
+        html += `<div style="margin-bottom:8px;"><h3 style="color:var(--color-accent);font-size:clamp(12px,2.5vw,14px);text-transform:uppercase;">${getCatTitle(cat)}</h3>`;
+        cat.items.forEach(item => {
+            const status = item.inventory === 'available' ? 'available' : item.inventory === 'limited' ? 'limited' : 'sold-out';
+            const statusLabel = item.inventory === 'available' ? '✅ Available' : item.inventory === 'limited' ? '⚠️ Limited' : '❌ Sold Out';
+            html += `<div class="admin-item-card" onclick="editAdminItem('${catKey}','${item.id}')">
+                <img src="${item.img}" alt="${item.name}">
+                <div class="info"><h4>${item.name}</h4><p>Br ${item.type === 'pizza' ? item.prices.medium : item.price}</p></div>
+                <span class="status-badge ${status}">${statusLabel}</span>
+            </div>`;
+        });
+        html += `</div>`;
+    });
+    container.innerHTML = html;
+}
+
+let adminEditCat = null, adminEditId = null;
+
+function editAdminItem(catKey, itemId) {
+    adminEditCat = catKey;
+    adminEditId = itemId;
+    const item = MENU_DATA[catKey].items.find(i => i.id === itemId);
+    if (!item) return;
+    document.getElementById('admin-edit-title').textContent = 'Edit Item';
+    document.getElementById('admin-edit-name').value = item.name;
+    document.getElementById('admin-edit-desc').value = item.desc;
+    document.getElementById('admin-edit-price').value = item.type === 'pizza' ? item.prices.medium : item.price;
+    document.getElementById('admin-edit-img').value = item.img;
+    document.getElementById('admin-edit-inventory').value = item.inventory || 'available';
+    document.getElementById('admin-edit-category').value = catKey;
+    document.getElementById('admin-edit-modal').style.display = 'flex';
+    // Show delete button for existing items
+    document.querySelector('#admin-edit-modal .btn-secondary').style.display = 'block';
+}
+
+function showAddItemModal() {
+    adminEditCat = null;
+    adminEditId = null;
+    document.getElementById('admin-edit-title').textContent = 'Add New Item';
+    document.getElementById('admin-edit-name').value = '';
+    document.getElementById('admin-edit-desc').value = '';
+    document.getElementById('admin-edit-price').value = '';
+    document.getElementById('admin-edit-img').value = '';
+    document.getElementById('admin-edit-inventory').value = 'available';
+    document.getElementById('admin-edit-category').value = 'veg-pizza';
+    document.getElementById('admin-edit-modal').style.display = 'flex';
+    // Hide delete button for new items
+    document.querySelector('#admin-edit-modal .btn-secondary').style.display = 'none';
+}
+
+function closeAdminEditModal() {
+    document.getElementById('admin-edit-modal').style.display = 'none';
+}
+
+function saveAdminItem() {
+    const name = document.getElementById('admin-edit-name').value.trim();
+    const desc = document.getElementById('admin-edit-desc').value.trim();
+    const price = parseFloat(document.getElementById('admin-edit-price').value);
+    const img = document.getElementById('admin-edit-img').value.trim() || 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80';
+    const inventory = document.getElementById('admin-edit-inventory').value;
+    const catKey = document.getElementById('admin-edit-category').value;
+    
+    if (!name || isNaN(price) || price <= 0) {
+        showToast('Please fill in all required fields');
+        return;
+    }
+    
+    if (adminEditId) {
+        // Edit existing
+        const item = MENU_DATA[adminEditCat].items.find(i => i.id === adminEditId);
+        if (item) {
+            item.name = name;
+            item.desc = desc;
+            item.price = price;
+            if (item.type === 'pizza') {
+                item.prices.small = Math.round(price * 0.6);
+                item.prices.medium = price;
+                item.prices.large = Math.round(price * 1.45);
+            } else {
+                item.price = price;
+            }
+            item.img = img;
+            item.inventory = inventory;
+        }
+    } else {
+        // Add new
+        const newId = 'n' + Date.now().toString(36);
+        const newItem = {
+            id: newId,
+            name: name,
+            name_am: name,
+            desc: desc,
+            desc_am: desc,
+            img: img,
+            type: 'flat',
+            price: price,
+            inventory: inventory,
+            popular: false,
+            dietary: []
+        };
+        MENU_DATA[catKey].items.push(newItem);
+    }
+    
+    closeAdminEditModal();
+    renderAdminMenu();
+    renderAll();
+    showToast('Item saved successfully!');
+}
+
+function deleteAdminItem() {
+    if (!adminEditCat || !adminEditId) return;
+    if (!confirm('Delete this item permanently?')) return;
+    const cat = MENU_DATA[adminEditCat];
+    if (cat) {
+        cat.items = cat.items.filter(i => i.id !== adminEditId);
+    }
+    closeAdminEditModal();
+    renderAdminMenu();
+    renderAll();
+    showToast('Item deleted!');
+}
+
+// ==================== ADMIN REPORTS ====================
+function renderAdminReport(period) {
+    const container = document.getElementById('report-content');
+    const now = new Date();
+    let filtered = [...orders];
+    
+    if (period === 'daily') {
+        const today = now.toDateString();
+        filtered = orders.filter(o => new Date(o.timestamp).toDateString() === today);
+    } else if (period === 'weekly') {
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        weekStart.setHours(0,0,0,0);
+        filtered = orders.filter(o => new Date(o.timestamp) >= weekStart);
+    } else if (period === 'monthly') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        filtered = orders.filter(o => new Date(o.timestamp) >= monthStart);
+    }
+    
+    const orderCount = filtered.length;
+    const totalRevenue = filtered.reduce((sum, o) => sum + o.total, 0);
+    const avgOrder = orderCount > 0 ? totalRevenue / orderCount : 0;
+    
+    // Item ranking
+    const itemSales = {};
+    filtered.forEach(o => {
+        o.items.forEach(it => {
+            const key = it.name;
+            if (!itemSales[key]) itemSales[key] = { name: it.name, count: 0, revenue: 0 };
+            itemSales[key].count += it.quantity;
+            itemSales[key].revenue += it.total;
+        });
+    });
+    const sortedItems = Object.values(itemSales).sort((a, b) => b.count - a.count);
+    const topItems = sortedItems.slice(0, 5);
+    const bottomItems = sortedItems.slice(-5).reverse();
+    
+    const periodLabel = period.charAt(0).toUpperCase() + period.slice(1);
+    
+    container.innerHTML = `
+        <div class="report-grid">
+            <div class="report-stat"><div class="value">${orderCount}</div><div class="label">Orders</div></div>
+            <div class="report-stat"><div class="value">Br ${totalRevenue.toFixed(0)}</div><div class="label">Revenue</div></div>
+            <div class="report-stat"><div class="value">Br ${avgOrder.toFixed(0)}</div><div class="label">Avg Order</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="report-card"><h4 style="color:var(--color-accent);margin-bottom:6px;">🔥 Most Sold</h4>
+                <ul class="ranking-list">${topItems.map((it,i) => `<li><span class="rank">#${i+1}</span><span class="name">${it.name}</span><span class="count">${it.count}x</span></li>`).join('') || '<li style="color:var(--color-text-muted);">No data</li>'}</ul>
+            </div>
+            <div class="report-card"><h4 style="color:var(--color-error);margin-bottom:6px;">📉 Least Sold</h4>
+                <ul class="ranking-list">${bottomItems.map((it,i) => `<li><span class="rank">#${i+1}</span><span class="name">${it.name}</span><span class="count">${it.count}x</span></li>`).join('') || '<li style="color:var(--color-text-muted);">No data</li>'}</ul>
+            </div>
+        </div>
+        <div style="margin-top:12px;padding:12px;background:var(--glass-bg);border-radius:var(--radius-sm);border:1px solid var(--glass-border);">
+            <h4 style="color:var(--color-text-muted);font-size:11px;text-transform:uppercase;margin-bottom:6px;">Recent Orders</h4>
+            ${filtered.slice(0, 10).map(o => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--glass-border);font-size:12px;color:var(--color-text-muted);">
+                <span>#${o.orderNo} - Table ${o.table}</span>
+                <span>Br ${o.total.toFixed(2)}</span>
+                <span>${new Date(o.timestamp).toLocaleTimeString()}</span>
+            </div>`).join('') || '<div style="color:var(--color-text-muted);">No orders in this period</div>'}
+        </div>
+    `;
+}
+
+// ==================== TOAST & UTILITY ====================
+function showToast(msg) {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+    const t = document.createElement('div');
+    t.className = 'toast-notification'; t.textContent = msg;
+    document.querySelector('.app-container').appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+function debounce(fn, d) { let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), d); }; }
+
+function renderAll() {
+    if (currentRole === 'customer') {
+        renderCategoryBar();
+        renderProducts();
+        updateNavPill();
+    }
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', () => {
+    renderAll();
+    document.getElementById('fasting-toggle').addEventListener('change', e => {
+        selectCategory(e.target.checked ? 'fasting-pizza' : 'veg-pizza');
+    });
+    document.getElementById('menu-search').addEventListener('input', debounce(e => {
+        const t = e.target.value.toLowerCase().trim();
+        t ? searchProducts(t) : renderProducts();
+    }, 300));
+    document.getElementById('product-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeProductModal();
+    });
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#sort-wrapper')) {
+            document.getElementById('sort-dropdown').classList.remove('show');
+            document.getElementById('sort-btn').classList.remove('open');
+        }
+    });
+    document.getElementById('admin-edit-modal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeAdminEditModal();
+    });
+    setupDragToDismiss();
+    document.getElementById('table-number-input').addEventListener('input', function() {
+        this.classList.remove('error');
+        document.getElementById('table-error-msg').classList.remove('show');
+    });
+    
+    // Set default role
+    switchRole('customer');
+});
+
+function setupDragToDismiss() {
+    const sheet = document.getElementById('modal-sheet');
+    let sy = 0, cy = 0, dragging = false;
+    sheet.querySelector('.modal-drag-handle').addEventListener('touchstart', e => {
+        sy = e.touches[0].clientY; dragging = true; sheet.style.transition = 'none';
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        if (!dragging) return; cy = e.touches[0].clientY;
+        const d = cy - sy; if (d > 0) sheet.style.transform = `translateY(${d}px)`;
+    }, { passive: true });
+    document.addEventListener('touchend', () => {
+        if (!dragging) return; dragging = false;
+        sheet.style.transition = 'transform 0.3s ease-out';
+        if (cy - sy > 100) closeProductModal(); else sheet.style.transform = 'translateY(0)';
+    });
+}
+</script>
+</body>
+</html>
