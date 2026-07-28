@@ -4,7 +4,7 @@ import Toast from '../components/Toast';
 import AdminMenuPanel from '../components/AdminMenuPanel';
 import AdminReportsPanel from '../components/AdminReportsPanel';
 
-export default function AdminDashboard({ onRoleSwitch, currentRole }) {
+export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('menu'); // 'menu' or 'reports'
 
   return (
@@ -14,7 +14,7 @@ export default function AdminDashboard({ onRoleSwitch, currentRole }) {
       </div>
       
       {/* Persistent header */}
-      <AppHeader onRoleSwitch={onRoleSwitch} currentRole={currentRole} />
+      <AppHeader />
 
       <main className="view-container" style={{ paddingBottom: 'calc(40px + var(--safe-bottom))' }}>
         <h1 className="display-title" style={{ marginBottom: 10 }}>

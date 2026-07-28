@@ -4,7 +4,7 @@ import Toast from '../components/Toast';
 import { useApp } from '../context/AppContext';
 import { useKitchenOrders } from '../hooks/useKitchenOrders';
 
-export default function KitchenDashboard({ onRoleSwitch, currentRole }) {
+export default function KitchenDashboard() {
   const { t, lang } = useApp();
   const { orders, loading, error, updateOrderStatus } = useKitchenOrders();
 
@@ -19,7 +19,7 @@ export default function KitchenDashboard({ onRoleSwitch, currentRole }) {
       </div>
       
       {/* Persistent header */}
-      <AppHeader onRoleSwitch={onRoleSwitch} currentRole={currentRole} />
+      <AppHeader />
 
       <main className="view-container" style={{ paddingBottom: 'calc(40px + var(--safe-bottom))' }}>
         <h1 className="display-title" style={{ marginBottom: 14 }}>

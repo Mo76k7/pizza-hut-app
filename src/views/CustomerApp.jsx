@@ -46,7 +46,7 @@ export default function CustomerApp({ onRoleSwitch, currentRole }) {
       </div>
 
       {/* 1. Persistent header */}
-      <AppHeader onRoleSwitch={onRoleSwitch} currentRole={currentRole} />
+      <AppHeader />
 
       {/* 2. Utility bar — only on menu view, sits between header and content */}
       {currentView === 'home' && (
