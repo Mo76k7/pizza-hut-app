@@ -27,13 +27,10 @@ export function extractTxnId(text, paymentMethod = 'telebirr') {
   return '';
 }
 
-/**
- * Checks bank_sms_logs in Supabase to see if a matching transaction exists
- */
-export async function matchBankSms(txnId) {
+export async function matchBankSms(txnId, orderAmount) {
   try {
-    const cleanTxn = txnId.trim();
-    if (!cleanTxn) return false;
+    const cleanTxn = txnId ? txnId.trim() : '';
+    if (!cleanTxn) return { matched: false };
 
     const { data, error } = await supabase
       .from('bank_sms_logs')
@@ -43,13 +40,28 @@ export async function matchBankSms(txnId) {
 
     if (error) {
       console.warn('[PaymentModal] bank_sms_logs check warning:', error.message);
-      return false;
+      return { matched: false };
     }
 
-    return data && data.length > 0;
+    if (data && data.length > 0) {
+      const log = data[0];
+      const logAmount = parseFloat(log.amount) || 0;
+      const requiredAmount = parseFloat(orderAmount) || 0;
+      
+      if (logAmount >= requiredAmount) {
+        return { matched: true };
+      } else {
+        return { 
+          matched: false, 
+          amountError: `Payment amount mismatch! Required: Br ${requiredAmount.toFixed(2)}, Received: Br ${logAmount.toFixed(2)}` 
+        };
+      }
+    }
+    
+    return { matched: false };
   } catch (err) {
     console.warn('[PaymentModal] bank_sms_logs check catch:', err);
-    return false;
+    return { matched: false };
   }
 }
 
@@ -78,10 +90,8 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
     setPreviewUrl(objectUrl);
     setModalError('');
 
-    // If OCR tab is selected, perform client-side OCR automatically
-    if (inputTab === 'ocr') {
-      await processImageOcr(file);
-    }
+    // Perform client-side OCR automatically in background
+    await processImageOcr(file);
   };
 
   const processImageOcr = async (file) => {
@@ -127,12 +137,12 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
 
   const handleSubmit = async () => {
     const finalTxnId = txnId.trim();
-    if (!finalTxnId) {
+    if (!finalTxnId && !receiptFile) {
       setModalError('Transaction Reference ID is required.');
       return;
     }
 
-    if (paymentMethod === 'cbe' && !/^FT/i.test(finalTxnId)) {
+    if (finalTxnId && paymentMethod === 'cbe' && !/^FT/i.test(finalTxnId)) {
       setModalError('CBE Transaction ID must start with FT (e.g. FT240123...)');
       return;
     }
@@ -162,7 +172,15 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
       }
 
       // Check if real-time matching with bank_sms_logs succeeds
-      const isBankMatched = await matchBankSms(finalTxnId);
+      const matchResult = await matchBankSms(finalTxnId, order.total_price);
+      
+      if (matchResult.amountError) {
+        setModalError(matchResult.amountError);
+        setIsSubmitting(false);
+        return; // reject payment
+      }
+
+      const isBankMatched = matchResult.matched;
       const newPaymentStatus = isBankMatched ? 'paid' : 'pending_verification';
 
       const { error: updateErr } = await supabase
