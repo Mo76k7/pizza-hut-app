@@ -8,16 +8,53 @@ export function AppProvider({ children }) {
   const [branch, setBranch] = useState('4 Kilo');
   const [cart, setCart] = useState([]);
   const [toast, setToast] = useState(null);
-  const [activeOrderId, setActiveOrderIdState] = useState(() => localStorage.getItem('activeOrderId') || null);
+  const [activeOrderIds, setActiveOrderIdsState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('activeOrderIds');
+      if (saved) return JSON.parse(saved);
+      const single = localStorage.getItem('activeOrderId');
+      return single ? [single] : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const addActiveOrderId = useCallback((id) => {
+    if (!id) return;
+    setActiveOrderIdsState((prev) => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      localStorage.setItem('activeOrderIds', JSON.stringify(updated));
+      localStorage.setItem('activeOrderId', id);
+      return updated;
+    });
+  }, []);
+
+  const removeActiveOrderId = useCallback((id) => {
+    if (!id) return;
+    setActiveOrderIdsState((prev) => {
+      const updated = prev.filter((oId) => oId !== id);
+      localStorage.setItem('activeOrderIds', JSON.stringify(updated));
+      if (updated.length > 0) {
+        localStorage.setItem('activeOrderId', updated[updated.length - 1]);
+      } else {
+        localStorage.removeItem('activeOrderId');
+      }
+      return updated;
+    });
+  }, []);
 
   const setActiveOrderId = useCallback((id) => {
-    setActiveOrderIdState(id);
     if (id) {
-      localStorage.setItem('activeOrderId', id);
+      addActiveOrderId(id);
     } else {
+      setActiveOrderIdsState([]);
+      localStorage.removeItem('activeOrderIds');
       localStorage.removeItem('activeOrderId');
     }
-  }, []);
+  }, [addActiveOrderId]);
+
+  const activeOrderId = activeOrderIds.length > 0 ? activeOrderIds[activeOrderIds.length - 1] : null;
   // Translation helper
   const t = useCallback((key) => TRANSLATIONS[lang]?.[key] ?? key, [lang]);
 
@@ -73,6 +110,7 @@ export function AppProvider({ children }) {
       cartCount, cartSubtotal,
       toast, showToast,
       activeOrderId, setActiveOrderId,
+      activeOrderIds, addActiveOrderId, removeActiveOrderId,
       t, getItemName, getItemDesc, getCatName,
     }}>
       {children}
