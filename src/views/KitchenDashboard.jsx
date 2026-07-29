@@ -3,6 +3,7 @@ import AppHeader from '../components/AppHeader';
 import Toast from '../components/Toast';
 import { useApp } from '../context/AppContext';
 import { useKitchenOrders } from '../hooks/useKitchenOrders';
+import { playOrderChime } from '../utils/sound';
 
 export default function KitchenDashboard() {
   const { t, lang } = useApp();
@@ -22,9 +23,30 @@ export default function KitchenDashboard() {
       <AppHeader />
 
       <main className="view-container" style={{ paddingBottom: 'calc(40px + var(--safe-bottom))' }}>
-        <h1 className="display-title" style={{ marginBottom: 14 }}>
-          👨‍🍳 Kitchen Dashboard
-        </h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h1 className="display-title" style={{ margin: 0 }}>
+            👨‍🍳 Kitchen Dashboard
+          </h1>
+          <button
+            onClick={playOrderChime}
+            title="Test notification chime sound"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              color: '#fff',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '6px 12px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            🔊 Test Sound
+          </button>
+        </div>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40 }}>

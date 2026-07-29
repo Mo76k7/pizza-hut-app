@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { useApp } from '../context/AppContext';
+import { playOrderChime } from '../utils/sound';
 
 export function useKitchenOrders() {
   const [orders, setOrders] = useState([]);
@@ -40,6 +41,7 @@ export function useKitchenOrders() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders', filter: `branch_location=eq.${branch}` },
         (payload) => {
+          playOrderChime();
           showToast(`🚨 NEW ORDER #${payload.new.order_number} (Table ${payload.new.table_number})!`, 'var(--color-success)');
           fetchOrders();
         }

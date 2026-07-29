@@ -30,18 +30,6 @@ export default function MenuView({ onNavigate, search = '', onSearchChange, fast
   // Determine active category object for title
   const activeCat = categories.find((c) => c.id === activeCategory);
 
-  // Auto-jump to fasting category when fasting toggle fires
-  const prevFasting = React.useRef(false);
-  React.useEffect(() => {
-    if (fastingOnly && !prevFasting.current) {
-      const fastingCat = categories.find(
-        (c) => c.name.toLowerCase().includes('fasting') || c.name_am?.includes('ጾም')
-      );
-      if (fastingCat) setActiveCategory(fastingCat.id);
-    }
-    prevFasting.current = fastingOnly;
-  }, [fastingOnly, categories]);
-
   // Items for current category + filtering + sorting
   const displayItems = useMemo(() => {
     let items = [];
@@ -66,7 +54,7 @@ export default function MenuView({ onNavigate, search = '', onSearchChange, fast
     // Fasting filter
     if (fastingOnly) {
       items = items.filter(
-        (i) => (i.dietary_tags || []).includes('fasting')
+        (i) => i.is_fasting === true || (i.dietary_tags || []).includes('fasting')
       );
     }
 
@@ -143,17 +131,19 @@ export default function MenuView({ onNavigate, search = '', onSearchChange, fast
             >
               All
             </div>
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                className={`cat-pill ${cat.id === activeCategory ? 'active' : ''}`}
-                onClick={() => selectCategory(cat.id)}
-                role="button"
-                tabIndex={0}
-              >
-                {getCatName(cat)}
-              </div>
-            ))}
+            {categories
+              .filter((cat) => !cat.name?.toLowerCase().includes('fasting') && !cat.name_am?.includes('ጾም'))
+              .map((cat) => (
+                <div
+                  key={cat.id}
+                  className={`cat-pill ${cat.id === activeCategory ? 'active' : ''}`}
+                  onClick={() => selectCategory(cat.id)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {getCatName(cat)}
+                </div>
+              ))}
           </div>
         </div>
         <button className="scroll-arrow" onClick={() => scrollCategories(120)} aria-label="Scroll right">

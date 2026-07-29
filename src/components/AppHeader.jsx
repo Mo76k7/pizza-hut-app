@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { BRANCH_OPTIONS } from '../utils/constants';
 
-export default function AppHeader({ onOpenSettings }) {
+export default function AppHeader() {
   const { lang, setLang, branch, setBranch, t } = useApp();
 
   return (
@@ -27,24 +27,6 @@ export default function AppHeader({ onOpenSettings }) {
       </div>
 
       <div className="header-right">
-        {onOpenSettings && (
-          <button
-            className="lang-toggle"
-            onClick={onOpenSettings}
-            title="Settings"
-            aria-label="Admin Settings"
-            style={{
-              padding: '6px 10px',
-              fontSize: '14px',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            ⚙️
-          </button>
-        )}
 
         {/* Language toggles */}
         <button

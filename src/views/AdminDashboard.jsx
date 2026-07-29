@@ -16,8 +16,8 @@ export default function AdminDashboard() {
         <div className="blob blob-1" /><div className="blob blob-2" /><div className="blob blob-3" />
       </div>
       
-      {/* Persistent header with settings icon handler */}
-      <AppHeader onOpenSettings={() => setShowSettingsModal(true)} />
+      {/* Persistent header */}
+      <AppHeader />
 
       <main className="view-container" style={{ paddingBottom: 'calc(40px + var(--safe-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
