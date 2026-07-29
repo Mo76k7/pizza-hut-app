@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { TRANSLATIONS, PAYMENT_ACCOUNTS as DEFAULT_ACCOUNTS } from '../utils/constants';
-import { supabase } from '../supabaseClient';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { TRANSLATIONS } from '../utils/constants';
 
 const AppContext = createContext(null);
 
@@ -9,8 +8,6 @@ export function AppProvider({ children }) {
   const [branch, setBranch] = useState('4 Kilo');
   const [cart, setCart] = useState([]);
   const [toast, setToast] = useState(null);
-  const [paymentAccounts, setPaymentAccounts] = useState(DEFAULT_ACCOUNTS);
-
   const [activeOrderIds, setActiveOrderIdsState] = useState(() => {
     try {
       const saved = localStorage.getItem('activeOrderIds');
@@ -21,46 +18,6 @@ export function AppProvider({ children }) {
       return [];
     }
   });
-
-  const refreshPaymentSettings = useCallback(async () => {
-    try {
-      // 1. Try local backup first
-      const cached = localStorage.getItem('payment_settings');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setPaymentAccounts({
-          telebirr: { number: parsed.telebirr_number || '0905868312', name: parsed.telebirr_name || 'Pizza Hut Telebirr' },
-          cbe: { number: parsed.cbe_number || '1000123456789', name: parsed.cbe_name || 'Pizza Hut CBE Birr' },
-          chapa: DEFAULT_ACCOUNTS.chapa,
-          cash: DEFAULT_ACCOUNTS.cash,
-        });
-      }
-
-      // 2. Fetch from Supabase payment_settings
-      const { data, error } = await supabase
-        .from('payment_settings')
-        .select('*')
-        .limit(1)
-        .single();
-
-      if (!error && data) {
-        const updated = {
-          telebirr: { number: data.telebirr_number || '0905868312', name: data.telebirr_name || 'Pizza Hut Telebirr' },
-          cbe: { number: data.cbe_number || '1000123456789', name: data.cbe_name || 'Pizza Hut CBE Birr' },
-          chapa: DEFAULT_ACCOUNTS.chapa,
-          cash: DEFAULT_ACCOUNTS.cash,
-        };
-        setPaymentAccounts(updated);
-        localStorage.setItem('payment_settings', JSON.stringify(data));
-      }
-    } catch (e) {
-      console.warn('[AppContext] refreshPaymentSettings error:', e);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshPaymentSettings();
-  }, [refreshPaymentSettings]);
 
   const addActiveOrderId = useCallback((id) => {
     if (!id) return;
@@ -98,7 +55,6 @@ export function AppProvider({ children }) {
   }, [addActiveOrderId]);
 
   const activeOrderId = activeOrderIds.length > 0 ? activeOrderIds[activeOrderIds.length - 1] : null;
-
   // Translation helper
   const t = useCallback((key) => TRANSLATIONS[lang]?.[key] ?? key, [lang]);
 
@@ -155,7 +111,6 @@ export function AppProvider({ children }) {
       toast, showToast,
       activeOrderId, setActiveOrderId,
       activeOrderIds, addActiveOrderId, removeActiveOrderId,
-      paymentAccounts, refreshPaymentSettings,
       t, getItemName, getItemDesc, getCatName,
     }}>
       {children}
