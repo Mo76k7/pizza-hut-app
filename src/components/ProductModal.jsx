@@ -5,30 +5,32 @@ import { STUFFED_CRUST_PRICE_MEDIUM, STUFFED_CRUST_PRICE_LARGE } from '../utils/
 const SIZES = ['small', 'medium', 'large'];
 const CRUSTS = [
   { id: 'regular', label: 'Regular' },
-  { id: 'thin',    label: 'Thin' },
-  { id: 'thick',   label: 'Thick' },
+  { id: 'thin', label: 'Thin' },
+  { id: 'thick', label: 'Thick' },
   { id: 'stuffed', label: 'Stuffed (+Br 795)' },
 ];
 
 function calcPrice(item, size, crust) {
   if (!item) return 0;
   const prices = item.prices_json || {};
-  
+
   if (item.item_type === 'pizza') {
     if (crust === 'stuffed') {
       return size === 'large' ? STUFFED_CRUST_PRICE_LARGE : STUFFED_CRUST_PRICE_MEDIUM;
     }
   }
 
-  if (Object.keys(prices).length > 0) {
-    return prices[size] || item.base_price || item.price || 0;
+  if (prices && typeof prices === 'object' && Object.keys(prices).length > 0) {
+    if (prices[size] !== undefined && prices[size] !== null && !isNaN(prices[size])) {
+      return Number(prices[size]);
+    }
   }
-  
-  return item.base_price || item.price || 0;
+
+  return Number(item.base_price || item.price || 0);
 }
 
 export default function ProductModal({ item, onClose }) {
-  const { addToCart, showToast, lang, getItemName, getItemDesc, t, cartCount } = useApp();
+  const { addToCart, showToast, getItemName, getItemDesc, t } = useApp();
   const [size, setSize] = useState('medium');
   const [crust, setCrust] = useState('regular');
   const [qty, setQty] = useState(1);
@@ -42,12 +44,23 @@ export default function ProductModal({ item, onClose }) {
     setQty(1);
   }, [item?.id]);
 
+  // Handle ESC key press to close modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  if (!item) return null;
+
   const unitPrice = calcPrice(item, size, crust);
   const totalPrice = unitPrice * qty;
   const isPizza = item?.item_type === 'pizza';
-  const hasSizes = !!item?.prices_json && Object.keys(item.prices_json).length > 0;
+  const hasSizes = !!item?.prices_json && typeof item.prices_json === 'object' && Object.keys(item.prices_json).length > 0;
 
-  const handleAddToCart = useCallback(() => {
+  const handleAddToCart = () => {
     if (!item) return;
     const cartId = hasSizes
       ? `${item.id}-${size}-${isPizza ? crust : 'no-crust'}`
@@ -56,7 +69,7 @@ export default function ProductModal({ item, onClose }) {
     addToCart({
       cartId,
       menuItemId: item.id,
-      name: getItemName(item),
+      name: getItemName ? getItemName(item) : item.name,
       nameEn: item.name,
       nameAm: item.name_am || item.name,
       size: hasSizes ? size : null,
@@ -73,9 +86,10 @@ export default function ProductModal({ item, onClose }) {
       flyToCart(imgEl, item.image_url);
     }
 
-    showToast(`${getItemName(item)} added to tray!`);
-    onClose();
-  }, [item, size, crust, qty, unitPrice, addToCart, showToast, getItemName, onClose, isPizza]);
+    const itemNameStr = getItemName ? getItemName(item) : item.name;
+    showToast(`${itemNameStr} added to tray!`, 'var(--color-success)');
+    if (onClose) onClose();
+  };
 
   // Touch drag-to-dismiss
   const handleTouchStart = (e) => {
@@ -94,72 +108,121 @@ export default function ProductModal({ item, onClose }) {
     dragStartY.current = null;
     if (sheetRef.current) {
       sheetRef.current.style.transition = 'transform 0.3s ease-out';
-      if (delta > 100) { onClose(); }
+      if (delta > 100 && onClose) { onClose(); }
       else { sheetRef.current.style.transform = 'translateY(0)'; }
     }
   };
 
-  if (!item) return null;
-
   const sizeClass = hasSizes ? `size-${size}` : 'size-medium';
+  const itemName = getItemName ? getItemName(item) : (item.name || 'Menu Item');
+  const itemDesc = getItemDesc ? getItemDesc(item) : (item.description || '');
 
   return (
     <div
       className="modal-overlay"
-      style={{ display: 'flex' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) onClose();
+      }}
       role="dialog"
       aria-modal="true"
-      aria-label={getItemName(item)}
+      aria-label={itemName}
     >
       <div
         className="modal-sheet"
         ref={sheetRef}
         onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: '560px',
+          maxHeight: '90vh',
+          backgroundColor: '#161622',
+          borderTop: '1px solid var(--glass-border-light)',
+          borderRadius: '20px 20px 0 0',
+          padding: '20px',
+          overflowY: 'auto',
+          boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.6)',
+          color: '#ffffff',
+          position: 'relative',
+        }}
       >
-        {/* Drag handle */}
+        {/* Touch Drag handle */}
         <div
           className="modal-drag-handle"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          style={{ cursor: 'grab', margin: '0 auto 12px' }}
         />
 
-        {/* Header */}
-        <div className="modal-close-header">
+        {/* Header with Title and Prominent X Close Button */}
+        <div className="modal-close-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h3
             className="display-title"
             id="modal-item-name"
-            style={{ fontSize: 'clamp(16px,4vw,20px)' }}
+            style={{ fontSize: 'clamp(18px, 4vw, 22px)', margin: 0, color: '#ffffff', fontWeight: 700 }}
           >
-            {getItemName(item)}
+            {itemName}
           </h3>
-          <button className="modal-close-btn" onClick={onClose} aria-label="Close">
+          <button
+            className="modal-close-btn"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              color: '#ffffff',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              flexShrink: 0,
+            }}
+          >
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
 
         {/* Image */}
-        <div className="modal-img-container">
+        <div className="modal-img-container" style={{ width: '100%', borderRadius: 12, overflow: 'hidden', marginBottom: 14, backgroundColor: '#0f0f17' }}>
           <img
             id="modal-item-img"
             src={item.image_url || '/pizza-placeholder.jpg'}
-            alt={getItemName(item)}
+            alt={itemName}
             className={`modal-img ${sizeClass}`}
             onError={(e) => { e.target.src = '/pizza-placeholder.jpg'; }}
+            style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }}
           />
         </div>
 
         {/* Description */}
-        <p id="modal-item-desc" className="modal-desc">
-          {getItemDesc(item)}
-        </p>
+        {itemDesc ? (
+          <p id="modal-item-desc" className="modal-desc" style={{ color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+            {itemDesc}
+          </p>
+        ) : null}
 
         {/* Crust options (Pizza only) */}
         {isPizza && (
-          <div id="crust-options-container">
-            <div className="options-group-title">{t('crust_type')}</div>
-            <div className="crust-options">
+          <div id="crust-options-container" style={{ marginBottom: 14 }}>
+            <div className="options-group-title" style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
+              {t ? t('crust_type') : 'Crust Type'}
+            </div>
+            <div className="crust-options" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
               {CRUSTS.map(({ id: crustId, label }) => (
                 <div
                   key={crustId}
@@ -167,6 +230,16 @@ export default function ProductModal({ item, onClose }) {
                   id={`crust-${crustId}`}
                   onClick={() => setCrust(crustId)}
                   role="button"
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    textAlign: 'center',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    backgroundColor: crust === crustId ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
+                    color: crust === crustId ? '#ffffff' : 'rgba(255,255,255,0.8)',
+                    border: crust === crustId ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
+                  }}
                 >
                   {label}
                 </div>
@@ -177,9 +250,11 @@ export default function ProductModal({ item, onClose }) {
 
         {/* Size options (Any item with sizes) */}
         {hasSizes && (
-          <div id="size-options-container">
-            <div className="options-group-title">{t('select_size')}</div>
-            <div className="selector-row">
+          <div id="size-options-container" style={{ marginBottom: 14 }}>
+            <div className="options-group-title" style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
+              {t ? t('select_size') : 'Select Size'}
+            </div>
+            <div className="selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {SIZES.map((s) => {
                 const p = item.prices_json?.[s] || item.base_price || item.price || 0;
                 return (
@@ -189,8 +264,19 @@ export default function ProductModal({ item, onClose }) {
                     id={`size-${s}`}
                     onClick={() => setSize(s)}
                     role="button"
+                    style={{
+                      padding: '10px 8px',
+                      borderRadius: 8,
+                      textAlign: 'center',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      backgroundColor: size === s ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
+                      color: size === s ? '#ffffff' : 'rgba(255,255,255,0.8)',
+                      border: size === s ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
+                    }}
                   >
-                    {s.charAt(0).toUpperCase() + s.slice(1)}<br />Br {p}
+                    <div style={{ fontWeight: 600 }}>{s.charAt(0).toUpperCase() + s.slice(1)}</div>
+                    <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>Br {p}</div>
                   </div>
                 );
               })}
@@ -203,24 +289,28 @@ export default function ProductModal({ item, onClose }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginTop: '14px',
-          borderTop: '1px solid var(--glass-border)',
-          paddingTop: '12px',
-          gap: '10px',
+          marginTop: '16px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          paddingTop: '14px',
+          gap: '12px',
         }}>
-          <div className="qty-selector">
+          <div className="qty-selector" style={{ display: 'flex', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: 8, padding: '4px 8px' }}>
             <button
               className="qty-btn"
               onClick={() => setQty((q) => Math.max(1, q - 1))}
               aria-label="Decrease quantity"
+              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', width: 28, height: 28 }}
             >
               −
             </button>
-            <span className="qty-value" id="modal-qty-display">{qty}</span>
+            <span className="qty-value" id="modal-qty-display" style={{ fontSize: 15, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>
+              {qty}
+            </span>
             <button
               className="qty-btn"
               onClick={() => setQty((q) => Math.min(10, q + 1))}
               aria-label="Increase quantity"
+              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', width: 28, height: 28 }}
             >
               +
             </button>
@@ -228,12 +318,23 @@ export default function ProductModal({ item, onClose }) {
 
           <button
             className="btn-primary"
-            style={{ margin: 0, flex: 1 }}
+            style={{
+              margin: 0,
+              flex: 1,
+              padding: '12px 16px',
+              borderRadius: 10,
+              backgroundColor: 'var(--color-primary)',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: 15,
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(225, 29, 72, 0.4)',
+            }}
             onClick={handleAddToCart}
             id="modal-add-btn"
           >
-            {t('add_to_tray')} — Br{' '}
-            <span id="modal-total-price-display">{totalPrice.toFixed(2)}</span>
+            {t ? t('add_to_tray') : 'Add to Tray'} — Br {totalPrice.toFixed(2)}
           </button>
         </div>
       </div>
@@ -254,6 +355,7 @@ function flyToCart(imgEl, imgSrc) {
   fly.style.left = `${rect.left + rect.width / 2 - 22}px`;
   fly.style.top = `${rect.top + rect.height / 2 - 22}px`;
   fly.style.position = 'fixed';
+  fly.style.zIndex = '100000';
   document.body.appendChild(fly);
 
   requestAnimationFrame(() => {

@@ -266,35 +266,38 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
   const hasRatings = ratingInfo && ratingInfo.count > 0;
   const avgRating = hasRatings ? (ratingInfo.sum / ratingInfo.count).toFixed(1) : null;
 
-  const handleQuickAdd = (e) => {
+  const hasSizes = !!item.prices_json && Object.keys(item.prices_json).length > 0;
+  const isPizza = item.item_type === 'pizza';
+  const hasOptions = hasSizes || isPizza;
+
+  const handlePlusClick = (e) => {
     e.stopPropagation();
     if (isSoldOut) return;
 
-    const hasSizes = !!item.prices_json && Object.keys(item.prices_json).length > 0;
-    const isPizza = item.item_type === 'pizza';
-    const unitPrice = isPizza
-      ? (item.prices_json?.medium || item.base_price || item.price || 0)
-      : (item.base_price || item.price || 0);
+    if (hasOptions) {
+      // Items with options (sizes/crusts) open the detail modal
+      onOpen(item);
+    } else {
+      // Items with no customizable options add directly to tray
+      const unitPrice = item.base_price || item.price || 0;
+      const cartId = `${item.id}-flat-${Date.now()}`;
 
-    const cartId = hasSizes
-      ? `${item.id}-medium-${isPizza ? 'regular' : 'no-crust'}`
-      : `${item.id}-flat-${Date.now()}`;
+      addToCart({
+        cartId,
+        menuItemId: item.id,
+        name: getItemName(item),
+        nameEn: item.name,
+        nameAm: item.name_am || item.name,
+        size: null,
+        crust: null,
+        unitPrice,
+        quantity: 1,
+        imageUrl: item.image_url || null,
+        itemType: item.item_type,
+      });
 
-    addToCart({
-      cartId,
-      menuItemId: item.id,
-      name: getItemName(item),
-      nameEn: item.name,
-      nameAm: item.name_am || item.name,
-      size: hasSizes ? 'medium' : null,
-      crust: isPizza ? 'regular' : null,
-      unitPrice,
-      quantity: 1,
-      imageUrl: item.image_url || null,
-      itemType: item.item_type,
-    });
-
-    showToast(`${getItemName(item)} added to tray!`, 'var(--color-success)');
+      showToast(`${getItemName(item)} added to tray!`, 'var(--color-success)');
+    }
   };
 
   return (
@@ -359,8 +362,8 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
           ) : (
             <i
               className="fa-solid fa-circle-plus add-icon-btn"
-              onClick={handleQuickAdd}
-              title="Add to tray"
+              onClick={handlePlusClick}
+              title={hasOptions ? "Select options" : "Add to tray"}
               role="button"
             />
           )}
