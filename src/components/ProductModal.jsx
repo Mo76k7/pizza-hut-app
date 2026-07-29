@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { STUFFED_CRUST_PRICE_MEDIUM, STUFFED_CRUST_PRICE_LARGE } from '../utils/constants';
 
@@ -34,8 +35,6 @@ export default function ProductModal({ item, onClose }) {
   const [size, setSize] = useState('medium');
   const [crust, setCrust] = useState('regular');
   const [qty, setQty] = useState(1);
-  const sheetRef = useRef(null);
-  const dragStartY = useRef(null);
 
   // Reset on new item
   useEffect(() => {
@@ -80,56 +79,32 @@ export default function ProductModal({ item, onClose }) {
       itemType: item.item_type,
     });
 
-    // Flying item animation — trigger from modal image
-    const imgEl = document.getElementById('modal-item-img');
-    if (imgEl && item.image_url) {
-      flyToCart(imgEl, item.image_url);
-    }
-
     const itemNameStr = getItemName ? getItemName(item) : item.name;
     showToast(`${itemNameStr} added to tray!`, 'var(--color-success)');
     if (onClose) onClose();
   };
 
-  // Touch drag-to-dismiss
-  const handleTouchStart = (e) => {
-    dragStartY.current = e.touches[0].clientY;
-    if (sheetRef.current) sheetRef.current.style.transition = 'none';
-  };
-  const handleTouchMove = (e) => {
-    if (dragStartY.current === null) return;
-    const delta = e.touches[0].clientY - dragStartY.current;
-    if (delta > 0 && sheetRef.current) {
-      sheetRef.current.style.transform = `translateY(${delta}px)`;
-    }
-  };
-  const handleTouchEnd = (e) => {
-    const delta = e.changedTouches[0].clientY - (dragStartY.current || 0);
-    dragStartY.current = null;
-    if (sheetRef.current) {
-      sheetRef.current.style.transition = 'transform 0.3s ease-out';
-      if (delta > 100 && onClose) { onClose(); }
-      else { sheetRef.current.style.transform = 'translateY(0)'; }
-    }
-  };
-
-  const sizeClass = hasSizes ? `size-${size}` : 'size-medium';
   const itemName = getItemName ? getItemName(item) : (item.name || 'Menu Item');
   const itemDesc = getItemDesc ? getItemDesc(item) : (item.description || '');
 
-  return (
+  const modalContent = (
     <div
       className="modal-overlay"
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        zIndex: 99999,
+        zIndex: 999999,
         display: 'flex',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         justifyContent: 'center',
+        padding: '16px',
+        boxSizing: 'border-box',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && onClose) onClose();
@@ -139,32 +114,24 @@ export default function ProductModal({ item, onClose }) {
       aria-label={itemName}
     >
       <div
-        className="modal-sheet"
-        ref={sheetRef}
+        className="modal-sheet product-modal-card"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '520px',
           maxHeight: '90vh',
           backgroundColor: '#161622',
-          borderTop: '1px solid var(--glass-border-light)',
-          borderRadius: '20px 20px 0 0',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          borderRadius: '20px',
           padding: '20px',
           overflowY: 'auto',
-          boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.6)',
+          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9)',
           color: '#ffffff',
           position: 'relative',
+          animation: 'none',
+          transform: 'none',
         }}
       >
-        {/* Touch Drag handle */}
-        <div
-          className="modal-drag-handle"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={{ cursor: 'grab', margin: '0 auto 12px' }}
-        />
-
         {/* Header with Title and Prominent X Close Button */}
         <div className="modal-close-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h3
@@ -182,14 +149,14 @@ export default function ProductModal({ item, onClose }) {
               backgroundColor: 'rgba(255, 255, 255, 0.15)',
               border: '1px solid rgba(255, 255, 255, 0.25)',
               color: '#ffffff',
-              width: '32px',
-              height: '32px',
+              width: '34px',
+              height: '34px',
               borderRadius: '50%',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '14px',
+              fontSize: '15px',
               flexShrink: 0,
             }}
           >
@@ -198,12 +165,12 @@ export default function ProductModal({ item, onClose }) {
         </div>
 
         {/* Image */}
-        <div className="modal-img-container" style={{ width: '100%', borderRadius: 12, overflow: 'hidden', marginBottom: 14, backgroundColor: '#0f0f17' }}>
+        <div className="modal-img-container" style={{ width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 14, backgroundColor: '#0f0f17' }}>
           <img
             id="modal-item-img"
             src={item.image_url || '/pizza-placeholder.jpg'}
             alt={itemName}
-            className={`modal-img ${sizeClass}`}
+            className="modal-img"
             onError={(e) => { e.target.src = '/pizza-placeholder.jpg'; }}
             style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }}
           />
@@ -340,32 +307,6 @@ export default function ProductModal({ item, onClose }) {
       </div>
     </div>
   );
-}
 
-// Flying-item animation utility
-function flyToCart(imgEl, imgSrc) {
-  const rect = imgEl.getBoundingClientRect();
-  const tray = document.getElementById('floating-tray-btn');
-  if (!tray) return;
-  const trayRect = tray.getBoundingClientRect();
-
-  const fly = document.createElement('img');
-  fly.src = imgSrc;
-  fly.className = 'flying-item';
-  fly.style.left = `${rect.left + rect.width / 2 - 22}px`;
-  fly.style.top = `${rect.top + rect.height / 2 - 22}px`;
-  fly.style.position = 'fixed';
-  fly.style.zIndex = '100000';
-  document.body.appendChild(fly);
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      fly.style.left = `${trayRect.left + trayRect.width / 2 - 22}px`;
-      fly.style.top = `${trayRect.top + trayRect.height / 2 - 22}px`;
-      fly.style.transform = 'scale(0.2)';
-      fly.style.opacity = '0.3';
-    });
-  });
-
-  setTimeout(() => fly.remove(), 550);
+  return ReactDOM.createPortal(modalContent, document.body);
 }
