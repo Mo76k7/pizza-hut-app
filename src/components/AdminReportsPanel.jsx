@@ -86,6 +86,12 @@ export default function AdminReportsPanel() {
           >
             Monthly
           </button>
+          <button 
+            className={`admin-tab ${period === 'all' ? 'active' : ''}`} 
+            onClick={() => setPeriod('all')}
+          >
+            ALL
+          </button>
         </div>
 
         <button

@@ -16,23 +16,28 @@ export function useAdminReports(period = 'daily') {
       let startDate;
 
       if (period === 'daily') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       } else if (period === 'weekly') {
-        startDate = new Date(now);
-        startDate.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
-        startDate.setHours(0, 0, 0, 0);
+        const day = now.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday, 0, 0, 0, 0);
       } else if (period === 'monthly') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       } else {
-        startDate = new Date(0); // All time
+        startDate = new Date(0); // All time / cumulative
       }
 
-      const { data, error: err } = await supabase
+      let query = supabase
         .from('orders')
         .select('*, order_items(*)')
         .eq('branch_location', branch)
-        .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
+
+      if (period !== 'all') {
+        query = query.gte('created_at', startDate.toISOString());
+      }
+
+      const { data, error: err } = await query;
 
       if (err) throw err;
       setOrders(data || []);
@@ -52,22 +57,27 @@ export function useAdminReports(period = 'daily') {
       let startDate;
 
       if (period === 'daily') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       } else if (period === 'weekly') {
-        startDate = new Date(now);
-        startDate.setDate(now.getDate() - now.getDay());
-        startDate.setHours(0, 0, 0, 0);
+        const day = now.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday, 0, 0, 0, 0);
       } else if (period === 'monthly') {
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       } else {
         startDate = new Date(0);
       }
 
-      const { data: targetOrders, error: fetchErr } = await supabase
+      let query = supabase
         .from('orders')
         .select('id')
-        .eq('branch_location', branch)
-        .gte('created_at', startDate.toISOString());
+        .eq('branch_location', branch);
+
+      if (period !== 'all') {
+        query = query.gte('created_at', startDate.toISOString());
+      }
+
+      const { data: targetOrders, error: fetchErr } = await query;
 
       if (fetchErr) throw fetchErr;
 

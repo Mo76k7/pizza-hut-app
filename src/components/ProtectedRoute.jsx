@@ -17,7 +17,8 @@ export default function ProtectedRoute({ role, requiredPin, children }) {
   }, [isUnlocked, role]);
 
   const handleSubmit = () => {
-    if (pin === requiredPin) {
+    const activeRequiredPin = localStorage.getItem(`${role}_pin`) || requiredPin;
+    if (pin === activeRequiredPin) {
       setIsUnlocked(true);
     } else {
       setError('Incorrect PIN. Try again.');
