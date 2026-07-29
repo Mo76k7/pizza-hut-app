@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { supabase } from '../supabaseClient';
 import { PAYMENT_ACCOUNTS } from '../utils/constants';
 import RatingModal from '../components/RatingModal';
+import PaymentModal from '../components/PaymentModal';
 
 const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
 
@@ -64,6 +65,13 @@ export default function TrackerView({ onNavigate }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          fetchOrders();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bank_sms_logs' },
         () => {
           fetchOrders();
         }
@@ -149,10 +157,6 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const { showToast } = useApp();
   const [selectedPayment, setSelectedPayment] = useState('telebirr');
   const [paymentModal, setPaymentModal] = useState(false);
-  const [txnId, setTxnId] = useState('');
-  const [receiptFile, setReceiptFile] = useState(null);
-  const [modalError, setModalError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const status = order?.status || 'received';
   const isRejected = status === 'rejected' || status === 'cancelled';
@@ -180,65 +184,6 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
     } catch (err) {
       console.error('Cancel order error:', err);
       showToast(`Failed to cancel order: ${err.message}`, 'var(--color-error)');
-    }
-  };
-
-  const handlePaymentSubmit = async () => {
-    if (selectedPayment === 'cbe' || selectedPayment === 'telebirr') {
-      if (!txnId.trim()) {
-        setModalError('Transaction ID is required.');
-        return;
-      }
-      if (selectedPayment === 'cbe' && !/^FT\w+/i.test(txnId.trim())) {
-        setModalError('CBE Transaction ID must start with FT');
-        return;
-      }
-      if (selectedPayment === 'telebirr' && !/^[A-Za-z0-9]+$/.test(txnId.trim())) {
-        setModalError('Telebirr Transaction ID must be alphanumeric');
-        return;
-      }
-    }
-
-    setIsSubmitting(true);
-    try {
-      let receiptUrl = null;
-      if (receiptFile) {
-        const fileExt = receiptFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `receipts/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('receipts')
-          .upload(filePath, receiptFile);
-
-        if (uploadError) throw new Error('Failed to upload receipt');
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('receipts')
-          .getPublicUrl(filePath);
-
-        receiptUrl = publicUrl;
-      }
-
-      const { error: orderErr } = await supabase
-        .from('orders')
-        .update({
-          payment_method: selectedPayment,
-          txn_id: txnId.trim(),
-          payment_status: 'pending_verification',
-          receipt_image_url: receiptUrl,
-        })
-        .eq('id', order.id);
-
-      if (orderErr) throw orderErr;
-
-      setPaymentModal(false);
-      onRefresh();
-    } catch (err) {
-      console.error('[OrderTicketCard] payment submit error:', err);
-      setModalError(err.message || 'Error submitting payment.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -452,95 +397,14 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         )}
       </div>
 
-      {/* Payment Reference Input Modal */}
+      {/* Payment Modal Component */}
       {paymentModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 99999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{
-            margin: 'auto', width: '90%', maxWidth: '400px',
-            padding: '24px', borderRadius: '14px',
-            backgroundColor: '#181824', border: '1px solid #2d2d3f',
-            zIndex: 100000,
-            display: 'flex', flexDirection: 'column', gap: '14px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.6)'
-          }}>
-            <h3 style={{ margin: 0, color: '#fff', fontSize: '18px', textAlign: 'center' }}>
-              Pay Order #{order.order_number} via {selectedPayment === 'cbe' ? 'CBE Birr' : 'Telebirr'}
-            </h3>
-
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '12px', margin: '0 0 2px' }}>Total Amount</p>
-              <p style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--color-accent)', margin: 0 }}>
-                Br {parseFloat(order.total_price).toFixed(2)}
-              </p>
-            </div>
-
-            <div style={{ backgroundColor: '#0f0f17', padding: '14px', borderRadius: '8px', border: '1px solid #3f3f5a' }}>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: 11, margin: '0 0 4px', textTransform: 'uppercase' }}>
-                Transfer to Account
-              </p>
-              <p style={{ fontSize: '16px', margin: '0 0 2px', color: '#fff', fontWeight: 700 }}>
-                {PAYMENT_ACCOUNTS[selectedPayment]?.number}
-              </p>
-              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', margin: 0 }}>
-                {PAYMENT_ACCOUNTS[selectedPayment]?.name}
-              </p>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontSize: 12, color: '#fff', fontWeight: 600 }}>
-                Transaction Reference / Txn ID *
-              </label>
-              <input
-                type="text"
-                placeholder={selectedPayment === 'cbe' ? "e.g. FT..." : "e.g. 7AG9B..."}
-                value={txnId}
-                onChange={(e) => { setTxnId(e.target.value); setModalError(''); }}
-                style={{
-                  width: '100%', backgroundColor: '#0f0f17', color: '#ffffff',
-                  border: '1px solid #3f3f5a', padding: '10px', borderRadius: '8px',
-                  fontSize: '15px', outline: 'none', boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 12, color: 'var(--color-text-muted)' }}>
-                Screenshot / Receipt (Optional)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setReceiptFile(e.target.files[0])}
-                style={{ width: '100%', color: '#ffffff', fontSize: '13px' }}
-              />
-            </div>
-
-            {modalError && <div style={{ color: '#ef4444', fontSize: '13px', textAlign: 'center' }}>{modalError}</div>}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              <button
-                className="btn-primary"
-                onClick={handlePaymentSubmit}
-                disabled={isSubmitting}
-                style={{ margin: 0, flex: 2, padding: '10px' }}
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Payment'}
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => setPaymentModal(false)}
-                disabled={isSubmitting}
-                style={{ margin: 0, flex: 1, padding: '10px' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <PaymentModal
+          order={order}
+          paymentMethod={selectedPayment}
+          onClose={() => setPaymentModal(false)}
+          onSuccess={onRefresh}
+        />
       )}
     </div>
   );
