@@ -55,11 +55,18 @@ export function useMenu() {
         if (ratingsData && Array.isArray(ratingsData)) {
           const map = {};
           ratingsData.forEach((r) => {
-            const key = r.menu_item_id || r.item_name;
-            if (key) {
-              if (!map[key]) map[key] = { sum: 0, count: 0 };
-              map[key].sum += Number(r.rating || 0);
-              map[key].count += 1;
+            const itemIdKey = r.menu_item_id;
+            const itemNameKey = r.item_name;
+
+            if (itemIdKey) {
+              if (!map[itemIdKey]) map[itemIdKey] = { sum: 0, count: 0 };
+              map[itemIdKey].sum += Number(r.rating || 0);
+              map[itemIdKey].count += 1;
+            }
+            if (itemNameKey && itemNameKey !== itemIdKey) {
+              if (!map[itemNameKey]) map[itemNameKey] = { sum: 0, count: 0 };
+              map[itemNameKey].sum += Number(r.rating || 0);
+              map[itemNameKey].count += 1;
             }
           });
           setRatingsMap(map);

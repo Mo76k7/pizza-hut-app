@@ -252,6 +252,8 @@ export default function MenuView({ onNavigate, search = '', onSearchChange, fast
 // ProductCard
 // ──────────────────────────────────────────────
 function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, t }) {
+  const { addToCart, showToast } = useApp();
+
   const isSoldOut = item.inventory_status === 'sold-out';
   const isLimited = item.inventory_status === 'limited';
   const dietIcons = getDietaryIcons(item.dietary_tags || []);
@@ -261,9 +263,39 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
     : `Br ${item.base_price || item.price || 0}`;
 
   const ratingInfo = (ratingsMap && (ratingsMap[item.id] || ratingsMap[item.name]));
-  const avgRating = ratingInfo && ratingInfo.count > 0 
-    ? (ratingInfo.sum / ratingInfo.count).toFixed(1) 
-    : '4.5';
+  const hasRatings = ratingInfo && ratingInfo.count > 0;
+  const avgRating = hasRatings ? (ratingInfo.sum / ratingInfo.count).toFixed(1) : null;
+
+  const handleQuickAdd = (e) => {
+    e.stopPropagation();
+    if (isSoldOut) return;
+
+    const hasSizes = !!item.prices_json && Object.keys(item.prices_json).length > 0;
+    const isPizza = item.item_type === 'pizza';
+    const unitPrice = isPizza
+      ? (item.prices_json?.medium || item.base_price || item.price || 0)
+      : (item.base_price || item.price || 0);
+
+    const cartId = hasSizes
+      ? `${item.id}-medium-${isPizza ? 'regular' : 'no-crust'}`
+      : `${item.id}-flat-${Date.now()}`;
+
+    addToCart({
+      cartId,
+      menuItemId: item.id,
+      name: getItemName(item),
+      nameEn: item.name,
+      nameAm: item.name_am || item.name,
+      size: hasSizes ? 'medium' : null,
+      crust: isPizza ? 'regular' : null,
+      unitPrice,
+      quantity: 1,
+      imageUrl: item.image_url || null,
+      itemType: item.item_type,
+    });
+
+    showToast(`${getItemName(item)} added to tray!`, 'var(--color-success)');
+  };
 
   return (
     <div
@@ -294,6 +326,8 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
 
       <div className="product-info">
         <h4>{getItemName(item)}</h4>
+        
+        {/* Dynamic Rating Badge */}
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -306,18 +340,30 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
           borderRadius: '4px',
           marginBottom: '4px'
         }}>
-          <span>⭐ {avgRating}/5</span>
-          {ratingInfo && ratingInfo.count > 0 && (
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>({ratingInfo.count})</span>
+          {hasRatings ? (
+            <>
+              <span>⭐ {avgRating}/5</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>({ratingInfo.count})</span>
+            </>
+          ) : (
+            <span>⭐ New</span>
           )}
         </div>
+
         <p>{getItemDesc(item)}</p>
+
         <div className="product-price-row">
           <span className="product-price">{displayPrice}</span>
-          {isSoldOut
-            ? <span style={{ color: '#EF4444', fontSize: '10px' }}>N/A</span>
-            : <i className="fa-solid fa-circle-plus add-icon-btn" />
-          }
+          {isSoldOut ? (
+            <span style={{ color: '#EF4444', fontSize: '10px' }}>N/A</span>
+          ) : (
+            <i
+              className="fa-solid fa-circle-plus add-icon-btn"
+              onClick={handleQuickAdd}
+              title="Add to tray"
+              role="button"
+            />
+          )}
         </div>
       </div>
     </div>
