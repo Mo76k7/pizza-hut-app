@@ -8,6 +8,7 @@ import { supabase } from '../supabaseClient';
 export function useMenu() {
   const [categories, setCategories] = useState([]);
   const [itemsByCategory, setItemsByCategory] = useState({});
+  const [ratingsMap, setRatingsMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -45,6 +46,27 @@ export function useMenu() {
         grouped[item.category_id].push(item);
       });
       setItemsByCategory(grouped);
+
+      // Fetch item ratings safely
+      try {
+        const { data: ratingsData } = await supabase
+          .from('item_ratings')
+          .select('menu_item_id, item_name, rating');
+        if (ratingsData && Array.isArray(ratingsData)) {
+          const map = {};
+          ratingsData.forEach((r) => {
+            const key = r.menu_item_id || r.item_name;
+            if (key) {
+              if (!map[key]) map[key] = { sum: 0, count: 0 };
+              map[key].sum += Number(r.rating || 0);
+              map[key].count += 1;
+            }
+          });
+          setRatingsMap(map);
+        }
+      } catch (rErr) {
+        console.warn('[useMenu] ratings fetch warning:', rErr);
+      }
     } catch (e) {
       console.error('[useMenu]', e);
       setError(e.message || 'Failed to load menu');
@@ -74,7 +96,7 @@ export function useMenu() {
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
 
   return { 
-    categories, itemsByCategory, loading, error, refetch: fetchMenu,
+    categories, itemsByCategory, ratingsMap, loading, error, refetch: fetchMenu,
     addMenuItem, updateMenuItem, deleteMenuItem 
   };
 }

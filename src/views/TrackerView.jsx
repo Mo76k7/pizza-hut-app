@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { useOrderTracker } from '../hooks/useOrderTracker';
 import { supabase } from '../supabaseClient';
 import { PAYMENT_ACCOUNTS } from '../utils/constants';
+import RatingModal from '../components/RatingModal';
 
 const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
 
@@ -21,6 +22,7 @@ export default function TrackerView({ onNavigate }) {
 
   const [prevPaymentStatus, setPrevPaymentStatus] = useState(null);
   const [showVerifiedMsg, setShowVerifiedMsg] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   // Payment Modal States
   const [paymentModal, setPaymentModal] = useState(false);
@@ -36,6 +38,14 @@ export default function TrackerView({ onNavigate }) {
         setShowVerifiedMsg(true);
         setTimeout(() => setShowVerifiedMsg(false), 3000);
       }
+
+      if (order.payment_status === 'paid') {
+        const alreadyRated = localStorage.getItem(`rated_order_${order.id}`);
+        if (!alreadyRated) {
+          setShowRatingModal(true);
+        }
+      }
+
       setPrevPaymentStatus(order.payment_status);
     }
   }, [order, prevPaymentStatus]);
@@ -316,13 +326,34 @@ export default function TrackerView({ onNavigate }) {
       </div>
 
       {/* Actions */}
-      <button
-        className="btn-secondary"
-        style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'none' }}
-        onClick={handleNewOrder}
-      >
-        <i className="fa-solid fa-plus" /> {t('new_order')}
-      </button>
+      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+        <button
+          className="btn-secondary"
+          style={{ flex: 1, background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', boxShadow: 'none', margin: 0 }}
+          onClick={handleNewOrder}
+        >
+          <i className="fa-solid fa-plus" /> {t('new_order')}
+        </button>
+
+        {order?.payment_status === 'paid' && (
+          <button
+            className="btn-primary"
+            style={{ flex: 1, margin: 0, backgroundColor: '#F59E0B' }}
+            onClick={() => setShowRatingModal(true)}
+          >
+            <i className="fa-solid fa-star" /> Rate Meal
+          </button>
+        )}
+      </div>
+
+      {/* Post-Payment Rating & Feedback Modal */}
+      {showRatingModal && (
+        <RatingModal
+          order={order}
+          onClose={() => setShowRatingModal(false)}
+          onSubmitted={() => setShowRatingModal(false)}
+        />
+      )}
 
       {/* Payment Modal */}
       {paymentModal && (

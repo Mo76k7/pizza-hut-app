@@ -19,7 +19,7 @@ function getBasePrice(item) {
 
 export default function MenuView({ onNavigate, search = '', onSearchChange, fastingOnly = false, onFastingToggle }) {
   const { lang, getItemName, getItemDesc, getCatName, t, cartCount } = useApp();
-  const { categories, itemsByCategory, loading, error } = useMenu();
+  const { categories, itemsByCategory, ratingsMap, loading, error } = useMenu();
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [sort, setSort] = useState('default');
@@ -216,6 +216,7 @@ export default function MenuView({ onNavigate, search = '', onSearchChange, fast
             <ProductCard
               key={item.id}
               item={item}
+              ratingsMap={ratingsMap}
               onOpen={setModalItem}
               getItemName={getItemName}
               getItemDesc={getItemDesc}
@@ -250,7 +251,7 @@ export default function MenuView({ onNavigate, search = '', onSearchChange, fast
 // ──────────────────────────────────────────────
 // ProductCard
 // ──────────────────────────────────────────────
-function ProductCard({ item, onOpen, getItemName, getItemDesc, t }) {
+function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, t }) {
   const isSoldOut = item.inventory_status === 'sold-out';
   const isLimited = item.inventory_status === 'limited';
   const dietIcons = getDietaryIcons(item.dietary_tags || []);
@@ -258,6 +259,11 @@ function ProductCard({ item, onOpen, getItemName, getItemDesc, t }) {
   const displayPrice = item.item_type === 'pizza'
     ? `Br ${item.prices_json?.medium || item.base_price || item.price || 0}`
     : `Br ${item.base_price || item.price || 0}`;
+
+  const ratingInfo = (ratingsMap && (ratingsMap[item.id] || ratingsMap[item.name]));
+  const avgRating = ratingInfo && ratingInfo.count > 0 
+    ? (ratingInfo.sum / ratingInfo.count).toFixed(1) 
+    : '4.5';
 
   return (
     <div
@@ -288,6 +294,23 @@ function ProductCard({ item, onOpen, getItemName, getItemDesc, t }) {
 
       <div className="product-info">
         <h4>{getItemName(item)}</h4>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          fontSize: '11px',
+          fontWeight: '600',
+          color: '#F59E0B',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          padding: '2px 6px',
+          borderRadius: '4px',
+          marginBottom: '4px'
+        }}>
+          <span>⭐ {avgRating}/5</span>
+          {ratingInfo && ratingInfo.count > 0 && (
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>({ratingInfo.count})</span>
+          )}
+        </div>
         <p>{getItemDesc(item)}</p>
         <div className="product-price-row">
           <span className="product-price">{displayPrice}</span>
