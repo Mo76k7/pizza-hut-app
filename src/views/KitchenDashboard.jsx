@@ -65,12 +65,12 @@ export default function KitchenDashboard() {
 function OrderCard({ order, onUpdateStatus, lang }) {
   // Determine status display info
   const statusClass = 
-    order.status === 'pending' ? 'pending' : 
+    order.status === 'received' ? 'pending' : 
     order.status === 'preparing' ? 'preparing' : 
     'ready';
   
   const statusLabel = 
-    order.status === 'pending' ? '⏳ Pending' : 
+    order.status === 'received' ? '⏳ Pending' : 
     order.status === 'accepted' ? '✅ Accepted' : 
     order.status === 'preparing' ? '🔨 Preparing' : 
     '✅ Ready';
@@ -108,7 +108,7 @@ function OrderCard({ order, onUpdateStatus, lang }) {
       </div>
       
       <div className="order-actions">
-        {order.status === 'pending' ? (
+        {order.status === 'received' ? (
           <button className="btn-accept" onClick={() => onUpdateStatus(order.id, 'accepted')}>
             Accept
           </button>

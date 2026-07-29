@@ -42,7 +42,7 @@ export default function CartView({ onNavigate }) {
           order_number: orderNumber,
           branch_location: branch,
           table_number: tableNumber.trim(),
-          status: 'pending',
+          status: 'received',
           subtotal: parseFloat(cartSubtotal.toFixed(2)),
           vat: parseFloat(vat.toFixed(2)),
           service_fee: parseFloat(service.toFixed(2)),
@@ -228,7 +228,7 @@ export default function CartView({ onNavigate }) {
           id="checkout-btn"
           onClick={handleSubmit}
           disabled={isSubmitting}
-          style={{ opacity: isSubmitting ? 0.7 : 1 }}
+          style={{ backgroundColor: 'var(--color-error)', opacity: isSubmitting ? 0.7 : 1 }}
         >
           {isSubmitting
             ? <><i className="fa-solid fa-spinner fa-spin" /> {t('processing')}</>

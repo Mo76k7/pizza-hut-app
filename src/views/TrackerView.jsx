@@ -4,10 +4,10 @@ import { useOrderTracker } from '../hooks/useOrderTracker';
 import { supabase } from '../supabaseClient';
 import { PAYMENT_ACCOUNTS } from '../utils/constants';
 
-const STATUS_STEPS = ['pending', 'accepted', 'preparing', 'ready', 'completed'];
+const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
 
 const STATUS_META = {
-  pending:   { icon: 'fa-clock',          color: 'var(--color-warning)',  pulse: true  },
+  received:  { icon: 'fa-clock',          color: 'var(--color-warning)',  pulse: true  },
   accepted:  { icon: 'fa-thumbs-up',      color: 'var(--color-success)', pulse: true  },
   preparing: { icon: 'fa-fire-burner',    color: '#3B82F6',              pulse: true  },
   ready:     { icon: 'fa-bell',           color: 'var(--color-success)', pulse: false },
@@ -130,9 +130,9 @@ export default function TrackerView({ onNavigate }) {
     </div>
   );
 
-  const status = order?.status || 'pending';
+  const status = order?.status || 'received';
   const isRejected = status === 'rejected';
-  const meta = STATUS_META[status] || STATUS_META.pending;
+  const meta = STATUS_META[status] || STATUS_META.received;
 
   // Render pending payment state
   if (order?.payment_status === 'pending_verification') {
@@ -168,7 +168,7 @@ export default function TrackerView({ onNavigate }) {
   // Build timeline steps
   const timelineSteps = isRejected
     ? [
-        { label: t('status_pending'),  done: true  },
+        { label: t('status_received'),  done: true  },
         { label: t('status_rejected'), done: true, isReject: true },
       ]
     : STATUS_STEPS.map((s) => ({
