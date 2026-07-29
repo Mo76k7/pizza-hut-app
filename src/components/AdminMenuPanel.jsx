@@ -6,15 +6,16 @@ import { supabase } from '../supabaseClient';
 export default function AdminMenuPanel() {
   const { categories, itemsByCategory, loading, error, addMenuItem, updateMenuItem, deleteMenuItem } = useMenu();
   const { t, getCatName, getItemName, showToast } = useApp();
-  
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [modalCategories, setModalCategories] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     if (modalOpen) {
       supabase.from('categories').select('id, name').then(({ data, error }) => {
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           setModalCategories(data);
         }
       });
@@ -28,11 +29,11 @@ export default function AdminMenuPanel() {
     { id: 'a0ee1c23-1111-2222-3333-444444444444', name: 'Fasting Pizza' },
     { id: 'a0ee1c23-1111-2222-3333-444444444445', name: 'Sides & Pasta' },
     { id: 'a0ee1c23-1111-2222-3333-444444444446', name: 'Specials & Melts' },
-    { id: 'a0ee1c23-1111-2222-3333-444444444447', name: 'Drinks' }
+    { id: 'a0ee1c23-1111-2222-3333-444444444447', name: 'Drinks' },
   ];
-  
+
   const displayCategories = modalCategories.length > 0 ? modalCategories : fallbackCategories;
-  
+
   // Form State
   const [formData, setFormData] = useState({
     name: '',
@@ -48,7 +49,7 @@ export default function AdminMenuPanel() {
     inventory_status: 'available',
     category_id: '',
     popular: false,
-    dietary_tags: []
+    dietary_tags: [],
   });
 
   const handleEdit = (item, catId) => {
@@ -67,7 +68,7 @@ export default function AdminMenuPanel() {
       inventory_status: item.inventory_status || 'available',
       category_id: item.category_id || catId,
       popular: item.popular || false,
-      dietary_tags: item.dietary_tags || []
+      dietary_tags: item.dietary_tags || [],
     });
     setModalOpen(true);
   };
@@ -75,12 +76,74 @@ export default function AdminMenuPanel() {
   const handleAdd = () => {
     setEditingItem(null);
     setFormData({
-      name: '', description: '', name_am: '', description_am: '',
-      base_price: '', hasMultipleSizes: false, price_small: '', price_medium: '', price_large: '', 
-      image_url: '', inventory_status: 'available',
-      category_id: '', popular: false, dietary_tags: []
+      name: '',
+      description: '',
+      name_am: '',
+      description_am: '',
+      base_price: '',
+      hasMultipleSizes: false,
+      price_small: '',
+      price_medium: '',
+      price_large: '',
+      image_url: '',
+      inventory_status: 'available',
+      category_id: displayCategories[0]?.id || '',
+      popular: false,
+      dietary_tags: [],
     });
     setModalOpen(true);
+  };
+
+  const handleImageFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `menu-items/${fileName}`;
+
+      // Upload file to 'menu-images' bucket in Supabase Storage
+      const { data, error: uploadErr } = await supabase.storage
+        .from('menu-images')
+        .upload(filePath, file);
+
+      if (uploadErr) {
+        console.warn('Bucket upload error, setting preview:', uploadErr);
+        // Fallback local preview URL
+        const localPreview = URL.createObjectURL(file);
+        setFormData((prev) => ({ ...prev, image_url: localPreview }));
+        showToast('Image preview set locally.', 'var(--color-warning)');
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('menu-images')
+        .getPublicUrl(filePath);
+
+      setFormData((prev) => ({ ...prev, image_url: urlData.publicUrl }));
+      showToast('Image uploaded to Supabase Storage!', 'var(--color-success)');
+    } catch (err) {
+      console.error('[AdminMenuPanel] upload error:', err);
+      showToast('Failed to upload image', 'var(--color-error)');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const toggleStockStatus = async (e, item) => {
+    e.stopPropagation();
+    const nextStatus = item.inventory_status === 'available' ? 'sold-out' : 'available';
+    try {
+      await updateMenuItem(item.id, { inventory_status: nextStatus });
+      showToast(
+        `${item.name} is now ${nextStatus === 'available' ? 'In Stock (Available)' : 'Out of Stock (Sold Out)'}!`,
+        nextStatus === 'available' ? 'var(--color-success)' : 'var(--color-error)'
+      );
+    } catch (err) {
+      showToast(`Error updating stock: ${err.message}`, 'var(--color-error)');
+    }
   };
 
   const handleSave = async () => {
@@ -94,18 +157,21 @@ export default function AdminMenuPanel() {
       return;
     }
     if (isSizesOn && (formData.price_small === '' || formData.price_medium === '' || formData.price_large === '')) {
-      showToast('Please fill in all size prices', 'var(--color-error)');
+      showToast('Please fill in all size prices (Small, Medium, Large)', 'var(--color-error)');
       return;
     }
 
     const payload = {
       ...formData,
       base_price: isSizesOn ? parseFloat(formData.price_medium) : parseFloat(formData.base_price),
-      prices_json: isSizesOn ? {
-        small: parseFloat(formData.price_small),
-        medium: parseFloat(formData.price_medium),
-        large: parseFloat(formData.price_large)
-      } : null
+      item_type: isSizesOn ? 'pizza' : 'item',
+      prices_json: isSizesOn
+        ? {
+            small: parseFloat(formData.price_small),
+            medium: parseFloat(formData.price_medium),
+            large: parseFloat(formData.price_large),
+          }
+        : null,
     };
 
     delete payload.hasMultipleSizes;
@@ -116,27 +182,49 @@ export default function AdminMenuPanel() {
     try {
       if (editingItem) {
         await updateMenuItem(editingItem.id, payload);
-        showToast('Item updated successfully!');
+        showToast('Item updated successfully!', 'var(--color-success)');
       } else {
         await addMenuItem(payload);
-        showToast('Item added successfully!');
+        showToast('Item added successfully!', 'var(--color-success)');
       }
       setModalOpen(false);
     } catch (e) {
-      showToast(`Error: ${e.message}`, 'var(--color-error)');
+      showToast(`Error saving item: ${e.message}`, 'var(--color-error)');
     }
   };
 
   const handleDelete = async () => {
     if (!editingItem) return;
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    if (!window.confirm(`Are you sure you want to delete "${editingItem.name}"?`)) return;
     try {
       await deleteMenuItem(editingItem.id);
-      showToast('Item deleted!');
+      showToast('Item deleted successfully!', 'var(--color-success)');
       setModalOpen(false);
     } catch (e) {
-      showToast(`Error: ${e.message}`, 'var(--color-error)');
+      showToast(`Error deleting item: ${e.message}`, 'var(--color-error)');
     }
+  };
+
+  const isFasting = (formData.dietary_tags || []).includes('fasting');
+  const toggleFastingTag = (checked) => {
+    let tags = [...(formData.dietary_tags || [])];
+    if (checked) {
+      if (!tags.includes('fasting')) tags.push('fasting');
+    } else {
+      tags = tags.filter((t) => t !== 'fasting');
+    }
+    setFormData({ ...formData, dietary_tags: tags });
+  };
+
+  const isSpicy = (formData.dietary_tags || []).includes('spicy');
+  const toggleSpicyTag = (checked) => {
+    let tags = [...(formData.dietary_tags || [])];
+    if (checked) {
+      if (!tags.includes('spicy')) tags.push('spicy');
+    } else {
+      tags = tags.filter((t) => t !== 'spicy');
+    }
+    setFormData({ ...formData, dietary_tags: tags });
   };
 
   if (loading) return <div style={{ textAlign: 'center', padding: 20 }}>Loading menu...</div>;
@@ -144,149 +232,364 @@ export default function AdminMenuPanel() {
 
   return (
     <div id="admin-menu-panel">
-      <button className="btn-secondary" onClick={handleAdd} style={{ width: 'auto', padding: '6px 14px', display: 'inline-flex', marginBottom: 10 }}>
-        <i className="fa-solid fa-plus" /> Add Item
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <button
+          className="btn-primary"
+          onClick={handleAdd}
+          style={{ width: 'auto', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0 }}
+        >
+          <i className="fa-solid fa-plus" /> Add New Item
+        </button>
+      </div>
 
       <div id="admin-menu-list">
         {categories.map((cat) => {
           const items = itemsByCategory[cat.id] || [];
           if (items.length === 0) return null;
           return (
-            <div key={cat.id} style={{ marginBottom: 16 }}>
-              <h3 style={{ color: 'var(--color-accent)', fontSize: 'clamp(12px, 2.5vw, 14px)', textTransform: 'uppercase', marginBottom: 6 }}>
-                {getCatName(cat)}
+            <div key={cat.id} style={{ marginBottom: 20 }}>
+              <h3
+                style={{
+                  color: 'var(--color-accent)',
+                  fontSize: 'clamp(13px, 2.5vw, 15px)',
+                  textTransform: 'uppercase',
+                  marginBottom: 8,
+                  borderBottom: '1px solid var(--glass-border)',
+                  paddingBottom: 4,
+                }}
+              >
+                {getCatName(cat)} ({items.length})
               </h3>
-              {items.map((item) => {
-                const statusClass = 
-                  item.inventory_status === 'available' ? 'available' :
-                  item.inventory_status === 'limited' ? 'limited' : 'sold-out';
-                const statusLabel = 
-                  item.inventory_status === 'available' ? '✅ Available' :
-                  item.inventory_status === 'limited' ? '⚠️ Limited' : '❌ Sold Out';
 
-                return (
-                  <div key={item.id} className="admin-item-card" onClick={() => handleEdit(item, cat.id)}>
-                    <img src={item.image_url} alt={item.name} />
-                    <div className="info">
-                      <h4>{getItemName(item)}</h4>
-                      <p>Br {item.base_price}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+                {items.map((item) => {
+                  const isAvailable = item.inventory_status === 'available';
+                  const isLimited = item.inventory_status === 'limited';
+
+                  const statusClass = isAvailable ? 'available' : isLimited ? 'limited' : 'sold-out';
+                  const statusLabel = isAvailable ? '✅ In Stock' : isLimited ? '⚠️ Limited' : '❌ Out of Stock';
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="admin-item-card"
+                      onClick={() => handleEdit(item, cat.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: 10,
+                        backgroundColor: '#181824',
+                        border: '1px solid #2d2d3f',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        position: 'relative',
+                      }}
+                    >
+                      <img
+                        src={item.image_url || '/pizza-placeholder.jpg'}
+                        alt={item.name}
+                        onError={(e) => {
+                          e.target.src = '/pizza-placeholder.jpg';
+                        }}
+                        style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover' }}
+                      />
+                      <div className="info" style={{ flex: 1, minWidth: 0 }}>
+                        <h4 style={{ margin: 0, color: '#fff', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {getItemName(item)}
+                        </h4>
+                        <p style={{ margin: '2px 0 0', color: 'var(--color-text-muted)', fontSize: 12 }}>
+                          {item.prices_json
+                            ? `Br ${item.prices_json.small || item.base_price} – ${item.prices_json.large || item.base_price}`
+                            : `Br ${item.base_price}`}
+                        </p>
+                      </div>
+
+                      {/* Stock Toggle Button directly on card */}
+                      <button
+                        type="button"
+                        onClick={(e) => toggleStockStatus(e, item)}
+                        title="Click to toggle stock status"
+                        style={{
+                          backgroundColor: isAvailable ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: isAvailable ? '#22c55e' : '#ef4444',
+                          border: `1px solid ${isAvailable ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                          borderRadius: 6,
+                          padding: '4px 8px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {statusLabel}
+                      </button>
                     </div>
-                    <span className={`status-badge ${statusClass}`}>{statusLabel}</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           );
         })}
       </div>
 
+      {/* Add / Edit Item Modal */}
       {modalOpen && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={(e) => { if(e.target === e.currentTarget) setModalOpen(false) }}>
-          <div className="modal-sheet" style={{ transform: 'none', animation: 'none' }}>
-            <div className="modal-drag-handle" />
-            <div className="modal-close-header">
-              <h3 className="display-title" style={{ fontSize: 'clamp(16px,4vw,20px)' }}>
-                {editingItem ? 'Edit Item' : 'Add New Item'}
+        <div
+          className="modal-overlay"
+          style={{ display: 'flex', zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalOpen(false);
+          }}
+        >
+          <div
+            className="modal-sheet"
+            style={{
+              maxWidth: '520px',
+              margin: 'auto',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              backgroundColor: '#181824',
+              border: '1px solid #2d2d3f',
+              borderRadius: 16,
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-close-header" style={{ marginBottom: 16 }}>
+              <h3 className="display-title" style={{ fontSize: 'clamp(18px,4vw,22px)', margin: 0 }}>
+                {editingItem ? '✏️ Edit Menu Item' : '➕ Add New Menu Item'}
               </h3>
-              <button className="modal-close-btn" onClick={() => setModalOpen(false)}>
+              <button className="modal-close-btn" onClick={() => setModalOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer' }}>
                 <i className="fa-solid fa-xmark" />
               </button>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <input 
-                type="text" placeholder="Item Name (EN) *" required
-                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
-                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
-              />
-              <input 
-                type="text" placeholder="Item Name (Amharic)"
-                value={formData.name_am} onChange={e => setFormData({...formData, name_am: e.target.value})}
-                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
-              />
-              <textarea 
-                placeholder="Description (EN)"
-                value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
-                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none', resize: 'none', height: 60 }} 
-              />
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                <input 
-                  type="checkbox" id="sizes-chk"
-                  checked={formData.hasMultipleSizes} onChange={e => setFormData({...formData, hasMultipleSizes: e.target.checked})}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Name EN */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#fff', marginBottom: 4, fontWeight: 600 }}>
+                  Item Name (English) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Super Supreme Pizza"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 10, borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                 />
-                <label htmlFor="sizes-chk">Has Multiple Sizes?</label>
               </div>
 
+              {/* Name Amharic */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>
+                  Item Name (Amharic Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="ለምሳሌ፦ ሱፐር ሱፕሪም ፒዛ"
+                  value={formData.name_am}
+                  onChange={(e) => setFormData({ ...formData, name_am: e.target.value })}
+                  style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 10, borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Category Selection */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#fff', marginBottom: 4, fontWeight: 600 }}>
+                  Category *
+                </label>
+                <select
+                  value={formData.category_id}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                  style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 10, borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="" disabled style={{ color: '#fff', backgroundColor: '#181824' }}>Select a Category...</option>
+                  {displayCategories.map((c) => (
+                    <option key={c.id} value={c.id} style={{ color: '#fff', backgroundColor: '#181824' }}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#fff', marginBottom: 4, fontWeight: 600 }}>
+                  Description (Ingredients)
+                </label>
+                <textarea
+                  placeholder="Tomato Sauce, Mozzarella Cheese, Beef..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 10, borderRadius: 8, fontSize: 14, outline: 'none', resize: 'none', height: 60, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Pricing mode toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <input
+                  type="checkbox"
+                  id="sizes-chk"
+                  checked={formData.hasMultipleSizes}
+                  onChange={(e) => setFormData({ ...formData, hasMultipleSizes: e.target.checked })}
+                />
+                <label htmlFor="sizes-chk" style={{ color: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                  Multiple Sizes (Small / Medium / Large Pizza Pricing)
+                </label>
+              </div>
+
+              {/* Price Fields */}
               {!formData.hasMultipleSizes ? (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input 
-                    type="number" placeholder="Base Price *" required
-                    value={formData.base_price} onChange={e => setFormData({...formData, base_price: e.target.value})}
-                    style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
-                  />
-                  <input 
-                    type="text" placeholder="Image URL"
-                    value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})}
-                    style={{ flex: 2, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#fff', marginBottom: 4, fontWeight: 600 }}>
+                    Price (Br) *
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 355"
+                    value={formData.base_price}
+                    onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
+                    style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 10, borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input 
-                      type="number" placeholder="Small Price *" required
-                      value={formData.price_small} onChange={e => setFormData({...formData, price_small: e.target.value})}
-                      style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
-                    />
-                    <input 
-                      type="number" placeholder="Medium Price *" required
-                      value={formData.price_medium} onChange={e => setFormData({...formData, price_medium: e.target.value})}
-                      style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
-                    />
-                    <input 
-                      type="number" placeholder="Large Price *" required
-                      value={formData.price_large} onChange={e => setFormData({...formData, price_large: e.target.value})}
-                      style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Small Price</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 540"
+                      value={formData.price_small}
+                      onChange={(e) => setFormData({ ...formData, price_small: e.target.value })}
+                      style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 8, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
-                  <input 
-                    type="text" placeholder="Image URL"
-                    value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})}
-                    style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }} 
-                  />
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Medium Price</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 830"
+                      value={formData.price_medium}
+                      onChange={(e) => setFormData({ ...formData, price_medium: e.target.value })}
+                      style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 8, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 2 }}>Large Price</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 1245"
+                      value={formData.price_large}
+                      onChange={(e) => setFormData({ ...formData, price_large: e.target.value })}
+                      style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 8, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
                 </div>
               )}
 
-              <select 
-                value={formData.inventory_status} onChange={e => setFormData({...formData, inventory_status: e.target.value})}
-                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }}>
-                <option value="available" style={{ color: '#ffffff', backgroundColor: '#1e1e2d' }}>Available</option>
-                <option value="limited" style={{ color: '#ffffff', backgroundColor: '#1e1e2d' }}>Limited</option>
-                <option value="sold-out" style={{ color: '#ffffff', backgroundColor: '#1e1e2d' }}>Sold Out</option>
-              </select>
-
-              <select 
-                value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})}
-                style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', color: '#FFF', padding: 10, borderRadius: 'var(--radius-sm)', fontSize: 14, outline: 'none' }}>
-                <option value="" disabled style={{ color: '#ffffff', backgroundColor: '#1a1a2e' }}>Select a Category...</option>
-                {displayCategories.map(c => <option key={c.id} value={c.id} style={{ color: '#ffffff', backgroundColor: '#1a1a2e' }}>{c.name}</option>)}
-              </select>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input 
-                  type="checkbox" id="popular-chk"
-                  checked={formData.popular} onChange={e => setFormData({...formData, popular: e.target.checked})}
+              {/* Image Upload section */}
+              <div style={{ backgroundColor: '#0f0f17', padding: 12, borderRadius: 8, border: '1px solid #29293d' }}>
+                <label style={{ display: 'block', fontSize: 12, color: '#fff', marginBottom: 6, fontWeight: 600 }}>
+                  Item Image (Upload File to Supabase Storage)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageFileUpload}
+                  disabled={uploadingImage}
+                  style={{ color: '#fff', fontSize: 13, marginBottom: 8 }}
                 />
-                <label htmlFor="popular-chk">Mark as Popular (★)</label>
+                {uploadingImage && <div style={{ color: 'var(--color-accent)', fontSize: 12 }}>Uploading image to menu-images bucket...</div>}
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                  <input
+                    type="text"
+                    placeholder="Or enter direct Image URL..."
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    style={{ flex: 1, background: '#181824', border: '1px solid #3f3f5a', color: '#FFF', padding: 8, borderRadius: 6, fontSize: 12, outline: 'none' }}
+                  />
+                  {formData.image_url && (
+                    <img
+                      src={formData.image_url}
+                      alt="Preview"
+                      style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', border: '1px solid #3f3f5a' }}
+                      onError={(e) => { e.target.src = '/pizza-placeholder.jpg'; }}
+                    />
+                  )}
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button className="btn-primary" onClick={handleSave} style={{ margin: 0, flex: 1 }}>Save</button>
+              {/* Stock Status Dropdown */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#fff', marginBottom: 4, fontWeight: 600 }}>
+                  Stock Status
+                </label>
+                <select
+                  value={formData.inventory_status}
+                  onChange={(e) => setFormData({ ...formData, inventory_status: e.target.value })}
+                  style={{ width: '100%', background: '#0f0f17', border: '1px solid #3f3f5a', color: '#FFF', padding: 10, borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="available" style={{ color: '#fff', backgroundColor: '#181824' }}>✅ In Stock (Available)</option>
+                  <option value="limited" style={{ color: '#fff', backgroundColor: '#181824' }}>⚠️ Limited Stock</option>
+                  <option value="sold-out" style={{ color: '#fff', backgroundColor: '#181824' }}>❌ Out of Stock (Sold Out)</option>
+                </select>
+              </div>
+
+              {/* Fasting & Spicy & Popular Toggles */}
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 4 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isFasting}
+                    onChange={(e) => toggleFastingTag(e.target.checked)}
+                  />
+                  ✝️ Fasting Food
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={isSpicy}
+                    onChange={(e) => toggleSpicyTag(e.target.checked)}
+                  />
+                  🌶️ Spicy
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fff', fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.popular}
+                    onChange={(e) => setFormData({ ...formData, popular: e.target.checked })}
+                  />
+                  ★ Popular Pick
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                <button
+                  className="btn-primary"
+                  onClick={handleSave}
+                  style={{ margin: 0, flex: 2, padding: 12 }}
+                >
+                  {editingItem ? 'Save Changes' : 'Add Item to Menu'}
+                </button>
                 {editingItem && (
-                  <button className="btn-secondary" onClick={handleDelete} style={{ margin: 0, flex: 0.5, background: 'rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.4)', color: 'var(--color-error)' }}>
-                    Delete
+                  <button
+                    className="btn-secondary"
+                    onClick={handleDelete}
+                    style={{
+                      margin: 0,
+                      flex: 1,
+                      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                      borderColor: 'rgba(239, 68, 68, 0.3)',
+                      color: '#ef4444',
+                      padding: 12,
+                    }}
+                  >
+                    Delete Item
                   </button>
                 )}
               </div>

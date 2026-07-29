@@ -93,7 +93,24 @@ export function useMenu() {
     await fetchMenu();
   };
 
-  useEffect(() => { fetchMenu(); }, [fetchMenu]);
+  useEffect(() => {
+    fetchMenu();
+
+    const channel = supabase
+      .channel('menu-items-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_items' },
+        () => {
+          fetchMenu();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchMenu]);
 
   return { 
     categories, itemsByCategory, ratingsMap, loading, error, refetch: fetchMenu,
