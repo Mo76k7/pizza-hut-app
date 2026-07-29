@@ -40,12 +40,7 @@ export function useKitchenOrders() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders', filter: `branch_location=eq.${branch}` },
         (payload) => {
-          // Play sound here in the future if needed
-          showToast(`New Order #${payload.new.order_number}!`, 'var(--color-success)');
-          
-          // We need to fetch the order items for the new order, so we fetch it specifically
-          // Or just trigger a full refetch for simplicity since it's a dashboard.
-          // Full refetch ensures we get the joined order_items accurately.
+          showToast(`🚨 NEW ORDER #${payload.new.order_number} (Table ${payload.new.table_number})!`, 'var(--color-success)');
           fetchOrders();
         }
       )
@@ -53,10 +48,12 @@ export function useKitchenOrders() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `branch_location=eq.${branch}` },
         (payload) => {
+          if (payload.new.status === 'cancelled' || payload.new.status === 'rejected') {
+            showToast(`⚠️ CANCELLED: Order #${payload.new.order_number} (Table ${payload.new.table_number}) was cancelled by customer!`, 'var(--color-error)');
+          }
           setOrders((prev) => 
             prev.map((o) => (o.id === payload.new.id ? { ...o, ...payload.new } : o))
-                // If it became completed, remove it from the list
-                .filter(o => o.status !== 'completed' && o.status !== 'rejected')
+                .filter(o => o.status !== 'completed' && o.status !== 'rejected' && o.status !== 'cancelled')
           );
         }
       )

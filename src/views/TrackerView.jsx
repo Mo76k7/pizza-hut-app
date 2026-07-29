@@ -146,6 +146,7 @@ export default function TrackerView({ onNavigate }) {
 // OrderTicketCard — Renders individual active order
 // ──────────────────────────────────────────────
 function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
+  const { showToast } = useApp();
   const [selectedPayment, setSelectedPayment] = useState('telebirr');
   const [paymentModal, setPaymentModal] = useState(false);
   const [txnId, setTxnId] = useState('');
@@ -154,12 +155,33 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const status = order?.status || 'received';
-  const isRejected = status === 'rejected';
+  const isRejected = status === 'rejected' || status === 'cancelled';
   const meta = STATUS_META[status] || STATUS_META.received;
   const isPaid = order.payment_status === 'paid';
   const isPendingVerification = order.payment_status === 'pending_verification';
   const isUnpaid = order.payment_status === 'unpaid';
   const isRated = localStorage.getItem(`rated_order_${order.id}`);
+  const isCancelable = status === 'received';
+
+  const handleCancelOrder = async () => {
+    if (!isCancelable) return;
+    if (!window.confirm(`Are you sure you want to cancel Order #${order.order_number}?`)) return;
+
+    try {
+      const { error: cancelErr } = await supabase
+        .from('orders')
+        .update({ status: 'cancelled' })
+        .eq('id', order.id);
+
+      if (cancelErr) throw cancelErr;
+
+      showToast(`Order #${order.order_number} has been cancelled.`, 'var(--color-warning)');
+      onRemoveOrder();
+    } catch (err) {
+      console.error('Cancel order error:', err);
+      showToast(`Failed to cancel order: ${err.message}`, 'var(--color-error)');
+    }
+  };
 
   const handlePaymentSubmit = async () => {
     if (selectedPayment === 'cbe' || selectedPayment === 'telebirr') {
@@ -403,6 +425,32 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           )}
         </div>
       )}
+      {/* Cancel Order Control */}
+      <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {isCancelable ? (
+          <button
+            className="btn-secondary"
+            onClick={handleCancelOrder}
+            style={{
+              margin: 0,
+              padding: '6px 12px',
+              fontSize: 12,
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+              color: '#ef4444',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <i className="fa-solid fa-ban" /> Cancel Order
+          </button>
+        ) : (
+          <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+            {isPaid ? '✅ Order Completed & Paid' : '🔒 Order accepted by kitchen — cancellation disabled'}
+          </span>
+        )}
+      </div>
 
       {/* Payment Reference Input Modal */}
       {paymentModal && (
