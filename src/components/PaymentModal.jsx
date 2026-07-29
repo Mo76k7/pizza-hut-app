@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createWorker } from 'tesseract.js';
 import { supabase } from '../supabaseClient';
 import { useApp } from '../context/AppContext';
-import { PAYMENT_ACCOUNTS } from '../utils/constants';
+import { PAYMENT_ACCOUNTS as DEFAULT_PAYMENT_ACCOUNTS } from '../utils/constants';
 
 /**
  * Extracts Transaction Reference ID from OCR text using regex patterns
@@ -20,7 +20,7 @@ export function extractTxnId(text, paymentMethod = 'telebirr') {
     return keywordMatch[1].toUpperCase();
   }
 
-  // 3. Fallback Alphanumeric pattern: 10-12 alphanumeric characters
+  // 3. Fallback Alphanumeric pattern: 10-12 alphanumeric characters (e.g., 9J82K3L10M)
   const telebirrMatch = text.match(/\b[A-Z0-9]{10,12}\b/i);
   if (telebirrMatch) return telebirrMatch[0].toUpperCase();
 
@@ -54,7 +54,7 @@ export async function matchBankSms(txnId) {
 }
 
 export default function PaymentModal({ order, paymentMethod, onClose, onSuccess }) {
-  const { showToast } = useApp();
+  const { showToast, paymentAccounts } = useApp();
   const [inputTab, setInputTab] = useState('manual'); // 'manual' or 'ocr'
   const [txnId, setTxnId] = useState('');
   const [detectedTxnId, setDetectedTxnId] = useState('');
@@ -66,7 +66,8 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
 
-  const accountInfo = PAYMENT_ACCOUNTS[paymentMethod] || PAYMENT_ACCOUNTS.telebirr;
+  const activeAccounts = paymentAccounts || DEFAULT_PAYMENT_ACCOUNTS;
+  const accountInfo = activeAccounts[paymentMethod] || DEFAULT_PAYMENT_ACCOUNTS[paymentMethod] || DEFAULT_PAYMENT_ACCOUNTS.telebirr;
 
   // Handle image selection for OCR
   const handleFileChange = async (e) => {
@@ -78,16 +79,14 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
     setPreviewUrl(objectUrl);
     setModalError('');
 
-    // If OCR tab is selected, perform client-side OCR automatically
-    if (inputTab === 'ocr') {
-      await processImageOcr(file);
-    }
+    // Perform client-side OCR automatically when screenshot selected
+    await processImageOcr(file);
   };
 
   const processImageOcr = async (file) => {
     setIsProcessingOcr(true);
     setOcrProgress(0);
-    setOcrStatus('Initializing OCR worker...');
+    setOcrStatus('Initializing OCR engine...');
     setDetectedTxnId('');
 
     let worker = null;
@@ -161,7 +160,7 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
         }
       }
 
-      // Check if real-time matching with bank_sms_logs succeeds
+      // Query bank_sms_logs in Supabase to see if SMS containing txn_id exists
       const isBankMatched = await matchBankSms(finalTxnId);
       const newPaymentStatus = isBankMatched ? 'paid' : 'pending_verification';
 
@@ -178,9 +177,9 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
       if (updateErr) throw updateErr;
 
       if (isBankMatched) {
-        showToast('Payment Automatically Verified & Marked PAID! 🎉', 'var(--color-success)');
+        showToast('Payment Automatically Verified & Marked PAID! 🎉 Kitchen Notified!', 'var(--color-success)');
       } else {
-        showToast('Payment submitted! Pending verification with bank SMS logs. ⏳', 'var(--color-warning)');
+        showToast('Submitted as Pending Verification. Cashier/Admin will verify shortly. ⏳', 'var(--color-warning)');
       }
 
       if (onSuccess) onSuccess();
@@ -209,7 +208,7 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h3 style={{ margin: 0, color: '#fff', fontSize: 18 }}>
-            Pay Order #{order.order_number} via {accountInfo.name}
+            Pay Order #{order.order_number} via {accountInfo.name || paymentMethod.toUpperCase()}
           </h3>
           <button
             onClick={onClose}
@@ -219,14 +218,17 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
           </button>
         </div>
 
-        {/* Account Details Box */}
+        {/* Dynamic Account Details Box */}
         <div style={{ backgroundColor: '#0f0f17', padding: '14px', borderRadius: '10px', border: '1px solid #2d2d42', marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Amount to Pay</span>
             <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-accent)' }}>Br {parseFloat(order.total_price).toFixed(2)}</span>
           </div>
           <div style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>
-            Account: <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>{accountInfo.number}</span>
+            Transfer to: <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)', fontSize: 15 }}>{accountInfo.number}</span>
+            {accountInfo.name && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{accountInfo.name}</div>
+            )}
           </div>
         </div>
 
