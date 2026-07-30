@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { useMenu } from '../hooks/useMenu';
 import ProductModal from '../components/ProductModal';
 
+import { triggerFlyToCartAnimation } from '../utils/animations';
+
 const DIETARY_ICONS = { spicy: '🌶️', vegetarian: '🌱', fasting: '✝️' };
 
 function getDietaryIcons(tags) {
@@ -285,7 +287,8 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
         imageUrl: item.image_url || null,
         itemType: item.item_type,
       });
-
+      
+      triggerFlyToCartAnimation(e, item.image_url);
       showToast(`${getItemName(item)} added to tray!`, 'var(--color-success)');
     }
   };

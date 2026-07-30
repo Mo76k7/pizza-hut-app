@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { STUFFED_CRUST_PRICE_MEDIUM, STUFFED_CRUST_PRICE_LARGE } from '../utils/constants';
 
+import { triggerFlyToCartAnimation } from '../utils/animations';
+
 const SIZES = ['small', 'medium', 'large'];
 const CRUSTS = [
   { id: 'regular', label: 'Regular' },
@@ -59,7 +61,7 @@ export default function ProductModal({ item, onClose }) {
   const isPizza = item?.item_type === 'pizza';
   const hasSizes = !!item?.prices_json && typeof item.prices_json === 'object' && Object.keys(item.prices_json).length > 0;
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e) => {
     if (!item) return;
     const cartId = hasSizes
       ? `${item.id}-${size}-${isPizza ? crust : 'no-crust'}`
@@ -78,6 +80,8 @@ export default function ProductModal({ item, onClose }) {
       imageUrl: item.image_url || null,
       itemType: item.item_type,
     });
+
+    triggerFlyToCartAnimation(e, item.image_url);
 
     const itemNameStr = getItemName ? getItemName(item) : item.name;
     showToast(`${itemNameStr} added to tray!`, 'var(--color-success)');

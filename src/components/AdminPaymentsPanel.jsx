@@ -115,21 +115,34 @@ export default function AdminPaymentsPanel() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8 }}>
-                <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start', background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 8 }}>
+                <div style={{ flex: 1, minWidth: 'min-content' }}>
                   <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 2 }}>Txn Ref / ID</div>
-                  <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: 15, letterSpacing: 1 }}>{p.txn_id || 'N/A'}</div>
+                  <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: 18, letterSpacing: 1, backgroundColor: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 6, display: 'inline-block' }}>
+                    {p.txn_id || 'N/A'}
+                  </div>
                 </div>
                 
                 {p.receipt_image_url && (
-                  <div>
+                  <div style={{ flex: 2, minWidth: 260 }}>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>Uploaded Receipt</div>
                     <a href={p.receipt_image_url} target="_blank" rel="noreferrer" style={{
-                      display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none',
-                      padding: '8px', borderRadius: 8, fontSize: 12
+                      display: 'block',
+                      background: 'rgba(0,0,0,0.4)', 
+                      border: '1px solid rgba(255,255,255,0.1)', 
+                      borderRadius: 8, 
+                      overflow: 'hidden',
+                      position: 'relative',
+                      textDecoration: 'none'
                     }}>
-                      <img src={p.receipt_image_url} alt="Receipt thumbnail" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6 }} />
-                      <span><i className="fa-solid fa-image" /> View Full Receipt</span>
+                      <img 
+                        src={p.receipt_image_url} 
+                        alt="Receipt thumbnail" 
+                        style={{ width: '100%', maxHeight: 256, objectFit: 'contain', display: 'block' }} 
+                      />
+                      <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.8)', padding: '6px 10px', borderRadius: 6, fontSize: 12, color: '#fff', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <i className="fa-solid fa-expand" /> View Full Screen
+                      </div>
                     </a>
                   </div>
                 )}
