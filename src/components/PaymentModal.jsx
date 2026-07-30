@@ -65,6 +65,33 @@ export async function matchBankSms(txnId, orderAmount) {
   }
 }
 
+const resizeImage = (file, maxWidth = 800) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function PaymentModal({ order, paymentMethod, onClose, onSuccess }) {
   const { showToast } = useApp();
   const [inputTab, setInputTab] = useState('manual'); // 'manual' or 'ocr'
@@ -97,11 +124,14 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
   const processImageOcr = async (file) => {
     setIsProcessingOcr(true);
     setOcrProgress(0);
-    setOcrStatus('Initializing OCR worker...');
+    setOcrStatus('Optimizing image...');
     setDetectedTxnId('');
 
     let worker = null;
     try {
+      const optimizedImage = await resizeImage(file, 800);
+      setOcrStatus('Initializing OCR worker...');
+
       worker = await createWorker('eng', 1, {
         logger: (m) => {
           if (m.status === 'recognizing text') {
@@ -113,7 +143,11 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
         },
       });
 
-      const { data: { text } } = await worker.recognize(file);
+      await worker.setParameters({
+        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+      });
+
+      const { data: { text } } = await worker.recognize(optimizedImage);
       await worker.terminate();
 
       const extracted = extractTxnId(text, paymentMethod);

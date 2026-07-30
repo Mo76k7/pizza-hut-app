@@ -60,23 +60,27 @@ export default function TrackerView({ onNavigate }) {
 
     if (!activeOrderIds || activeOrderIds.length === 0) return;
 
-    const channel = supabase
-      .channel('orders-realtime-tracker')
-      .on(
+    let channel = supabase.channel('orders-realtime-tracker');
+
+    // Subscribe specifically to UPDATE events for each active order ID
+    activeOrderIds.forEach((id) => {
+      channel = channel.on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` },
         () => {
           fetchOrders();
         }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bank_sms_logs' },
-        () => {
-          fetchOrders();
-        }
-      )
-      .subscribe();
+      );
+    });
+
+    // Keep bank_sms_logs subscription
+    channel = channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'bank_sms_logs' },
+      () => {
+        fetchOrders();
+      }
+    ).subscribe();
 
     return () => {
       supabase.removeChannel(channel);

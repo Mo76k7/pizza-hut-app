@@ -6,6 +6,7 @@ export default function AdminPaymentsPanel() {
   const { payments, loading, error, approvePayment } = usePendingPayments();
   const { showToast } = useApp();
   const [approving, setApproving] = useState({});
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'approved'
 
   const handleApprove = async (id) => {
     if (!window.confirm('Are you sure you want to manually approve this payment?')) return;
@@ -20,30 +21,69 @@ export default function AdminPaymentsPanel() {
     }
   };
 
-  if (loading) return <div style={{ padding: 20 }}>Loading pending payments...</div>;
+  if (loading) return <div style={{ padding: 20 }}>Loading payments...</div>;
   if (error) return <div style={{ padding: 20, color: 'var(--color-error)' }}>Error: {error}</div>;
+
+  const currentPayments = activeTab === 'pending' ? payments.pending : payments.approved;
 
   return (
     <div className="admin-panel fade-in">
-      <div className="admin-header-row">
-        <h2 style={{ color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <i className="fa-solid fa-file-invoice-dollar" style={{ color: 'var(--color-accent)' }} />
-          Pending Verifications
-        </h2>
-        <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '4px 12px', borderRadius: 20, fontSize: 13, color: '#fff' }}>
-          {payments.length} Pending
+      <div className="admin-header-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <i className="fa-solid fa-file-invoice-dollar" style={{ color: 'var(--color-accent)' }} />
+            Payment Verifications
+          </h2>
+          <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '4px 12px', borderRadius: 20, fontSize: 13, color: '#fff' }}>
+            {payments.pending.length} Pending
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', gap: 8, backgroundColor: '#0f0f17', padding: 4, borderRadius: 10, border: '1px solid #29293d' }}>
+          <button
+            onClick={() => setActiveTab('pending')}
+            style={{
+              flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+              backgroundColor: activeTab === 'pending' ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === 'pending' ? '#fff' : 'var(--color-text-muted)',
+              fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s ease',
+            }}
+          >
+            Pending Verifications
+          </button>
+          <button
+            onClick={() => setActiveTab('approved')}
+            style={{
+              flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+              backgroundColor: activeTab === 'approved' ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === 'approved' ? '#fff' : 'var(--color-text-muted)',
+              fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s ease',
+            }}
+          >
+            Completed / Approved
+          </button>
         </div>
       </div>
 
-      {payments.length === 0 ? (
+      {currentPayments.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--color-text-muted)' }}>
-          <i className="fa-solid fa-check-circle" style={{ fontSize: 48, marginBottom: 16, color: 'var(--color-success)' }} />
-          <h3 style={{ margin: '0 0 8px 0', color: '#fff' }}>All caught up!</h3>
-          <p>No payments waiting for verification.</p>
+          {activeTab === 'pending' ? (
+            <>
+              <i className="fa-solid fa-check-circle" style={{ fontSize: 48, marginBottom: 16, color: 'var(--color-success)' }} />
+              <h3 style={{ margin: '0 0 8px 0', color: '#fff' }}>All caught up!</h3>
+              <p>No payments waiting for verification.</p>
+            </>
+          ) : (
+            <>
+              <i className="fa-solid fa-history" style={{ fontSize: 48, marginBottom: 16, color: 'var(--color-text-muted)' }} />
+              <h3 style={{ margin: '0 0 8px 0', color: '#fff' }}>No history yet</h3>
+              <p>Approved payments will appear here.</p>
+            </>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {payments.map(p => (
+          {currentPayments.map(p => (
             <div key={p.id} style={{
               background: 'var(--glass-bg)',
               border: '1px solid var(--glass-border)',
@@ -55,7 +95,7 @@ export default function AdminPaymentsPanel() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <h3 style={{ margin: '0 0 4px 0', color: '#fff' }}>Order {p.order_number}</h3>
+                  <h3 style={{ margin: '0 0 4px 0', color: '#fff' }}>{p.order_number}</h3>
                   <div style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>
                     <i className="fa-solid fa-clock" /> {new Date(p.created_at).toLocaleString()}
                   </div>
@@ -67,6 +107,11 @@ export default function AdminPaymentsPanel() {
                   <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 600 }}>
                     {p.payment_method}
                   </div>
+                  {activeTab === 'approved' && (
+                    <div style={{ fontSize: 12, color: 'var(--color-success)', fontWeight: 700, marginTop: 4 }}>
+                      <i className="fa-solid fa-circle-check" /> PAID
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -79,30 +124,33 @@ export default function AdminPaymentsPanel() {
                 {p.receipt_image_url && (
                   <div>
                     <a href={p.receipt_image_url} target="_blank" rel="noreferrer" style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      background: 'rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none',
-                      padding: '6px 12px', borderRadius: 6, fontSize: 13
+                      display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', textDecoration: 'none',
+                      padding: '8px', borderRadius: 8, fontSize: 12
                     }}>
-                      <i className="fa-solid fa-image" /> View Receipt
+                      <img src={p.receipt_image_url} alt="Receipt thumbnail" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6 }} />
+                      <span><i className="fa-solid fa-image" /> View Full Receipt</span>
                     </a>
                   </div>
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-                <button 
-                  className="btn-primary"
-                  onClick={() => handleApprove(p.id)}
-                  disabled={approving[p.id]}
-                  style={{ padding: '8px 16px', fontSize: 14 }}
-                >
-                  {approving[p.id] ? (
-                    <><i className="fa-solid fa-spinner fa-spin" /> Approving...</>
-                  ) : (
-                    <><i className="fa-solid fa-check" /> Override & Approve</>
-                  )}
-                </button>
-              </div>
+              {activeTab === 'pending' && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                  <button 
+                    className="btn-primary"
+                    onClick={() => handleApprove(p.id)}
+                    disabled={approving[p.id]}
+                    style={{ padding: '8px 16px', fontSize: 14 }}
+                  >
+                    {approving[p.id] ? (
+                      <><i className="fa-solid fa-spinner fa-spin" /> Approving...</>
+                    ) : (
+                      <><i className="fa-solid fa-check" /> Override & Approve</>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -3,9 +3,6 @@ import { supabase } from '../supabaseClient';
 import { useApp } from '../context/AppContext';
 import { VAT_RATE, SERVICE_RATE, PAYMENT_ACCOUNTS } from '../utils/constants';
 
-function generateOrderNumber() {
-  return `ORD-${Date.now().toString().slice(-6)}`;
-}
 
 export default function CartView({ onNavigate }) {
   const {
@@ -33,7 +30,22 @@ export default function CartView({ onNavigate }) {
 
     setIsSubmitting(true);
     try {
-      const orderNumber = generateOrderNumber();
+      // Fetch latest order number
+      const { data: latestOrder, error: latestOrderErr } = await supabase
+        .from('orders')
+        .select('order_number')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let nextNumber = 1;
+      if (!latestOrderErr && latestOrder && latestOrder.length > 0) {
+        const lastNumberStr = latestOrder[0].order_number;
+        const lastNumber = parseInt(lastNumberStr.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1;
+        }
+      }
+      const orderNumber = `Order #${nextNumber}`;
 
       // 1. Insert order
       const { data: order, error: orderErr } = await supabase
@@ -74,7 +86,7 @@ export default function CartView({ onNavigate }) {
       // 3. Navigate to tracker
       setActiveOrderId(order.id);
       clearCart();
-      showToast(`${t('order_placed')} #${orderNumber}`, 'var(--color-success)');
+      showToast(`${t('order_placed')} ${orderNumber}`, 'var(--color-success)');
       onNavigate('tracker');
     } catch (err) {
       console.error('[CartView] submit error:', err);

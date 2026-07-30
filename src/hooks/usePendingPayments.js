@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { useApp } from '../context/AppContext';
 
 export function usePendingPayments() {
-  const [payments, setPayments] = useState([]);
+  const [payments, setPayments] = useState({ pending: [], approved: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { branch } = useApp();
@@ -15,8 +15,8 @@ export function usePendingPayments() {
       let query = supabase
         .from('orders')
         .select('*')
-        .eq('payment_status', 'pending_verification')
-        .order('created_at', { ascending: true });
+        .in('payment_status', ['pending_verification', 'paid'])
+        .order('created_at', { ascending: false });
         
       if (branch !== 'All') {
         query = query.eq('branch_location', branch);
@@ -25,7 +25,10 @@ export function usePendingPayments() {
       const { data, error: err } = await query;
       if (err) throw err;
       
-      setPayments(data || []);
+      const allPayments = data || [];
+      const pending = allPayments.filter(p => p.payment_status === 'pending_verification');
+      const approved = allPayments.filter(p => p.payment_status === 'paid');
+      setPayments({ pending, approved });
     } catch (err) {
       console.error('[usePendingPayments] fetch error:', err);
       setError(err.message);
