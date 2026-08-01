@@ -3,10 +3,11 @@ import { usePendingPayments } from '../hooks/usePendingPayments';
 import { useApp } from '../context/AppContext';
 
 export default function AdminPaymentsPanel() {
-  const { payments, loading, error, approvePayment } = usePendingPayments();
+  const { payments, loading, error, approvePayment, rejectPayment } = usePendingPayments();
   const { showToast } = useApp();
   const [approving, setApproving] = useState({});
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'approved'
+  const [rejecting, setRejecting] = useState({});
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' or 'history'
 
   const handleApprove = async (id) => {
     if (!window.confirm('Are you sure you want to manually approve this payment?')) return;
@@ -21,10 +22,23 @@ export default function AdminPaymentsPanel() {
     }
   };
 
+  const handleReject = async (id) => {
+    if (!window.confirm('Are you sure you want to reject this payment?')) return;
+    setRejecting(prev => ({ ...prev, [id]: true }));
+    try {
+      await rejectPayment(id);
+      showToast('Payment rejected', 'var(--color-warning)');
+    } catch (err) {
+      showToast('Failed to reject payment', 'var(--color-error)');
+    } finally {
+      setRejecting(prev => ({ ...prev, [id]: false }));
+    }
+  };
+
   if (loading) return <div style={{ padding: 20 }}>Loading payments...</div>;
   if (error) return <div style={{ padding: 20, color: 'var(--color-error)' }}>Error: {error}</div>;
 
-  const currentPayments = activeTab === 'pending' ? payments.pending : payments.approved;
+  const currentPayments = activeTab === 'pending' ? payments.pending : payments.history;
 
   return (
     <div className="admin-panel fade-in">
@@ -52,15 +66,15 @@ export default function AdminPaymentsPanel() {
             Pending Verifications
           </button>
           <button
-            onClick={() => setActiveTab('approved')}
+            onClick={() => setActiveTab('history')}
             style={{
               flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
-              backgroundColor: activeTab === 'approved' ? 'var(--color-primary)' : 'transparent',
-              color: activeTab === 'approved' ? '#fff' : 'var(--color-text-muted)',
+              backgroundColor: activeTab === 'history' ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === 'history' ? '#fff' : 'var(--color-text-muted)',
               fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s ease',
             }}
           >
-            Completed / Approved
+            Payment History
           </button>
         </div>
       </div>
@@ -77,7 +91,7 @@ export default function AdminPaymentsPanel() {
             <>
               <i className="fa-solid fa-history" style={{ fontSize: 48, marginBottom: 16, color: 'var(--color-text-muted)' }} />
               <h3 style={{ margin: '0 0 8px 0', color: '#fff' }}>No history yet</h3>
-              <p>Approved payments will appear here.</p>
+              <p>Approved or rejected payments will appear here.</p>
             </>
           )}
         </div>
@@ -85,8 +99,8 @@ export default function AdminPaymentsPanel() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {currentPayments.map(p => (
             <div key={p.id} style={{
-              background: 'var(--glass-bg)',
-              border: '1px solid var(--glass-border)',
+              background: p.payment_status === 'auto_verified' ? 'rgba(34, 197, 94, 0.1)' : 'var(--glass-bg)',
+              border: p.payment_status === 'auto_verified' ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid var(--glass-border)',
               borderRadius: 12,
               padding: 16,
               display: 'flex',
@@ -107,9 +121,14 @@ export default function AdminPaymentsPanel() {
                   <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 600 }}>
                     {p.payment_method}
                   </div>
-                  {activeTab === 'approved' && (
+                  {activeTab === 'history' && (
+                    <div style={{ fontSize: 12, color: p.payment_status === 'paid' ? 'var(--color-success)' : 'var(--color-error)', fontWeight: 700, marginTop: 4 }}>
+                      {p.payment_status === 'paid' ? <><i className="fa-solid fa-circle-check" /> PAID</> : <><i className="fa-solid fa-circle-xmark" /> REJECTED</>}
+                    </div>
+                  )}
+                  {activeTab === 'pending' && p.payment_status === 'auto_verified' && (
                     <div style={{ fontSize: 12, color: 'var(--color-success)', fontWeight: 700, marginTop: 4 }}>
-                      <i className="fa-solid fa-circle-check" /> PAID
+                      <i className="fa-solid fa-robot" /> AUTO-VERIFIED
                     </div>
                   )}
                 </div>
@@ -149,7 +168,19 @@ export default function AdminPaymentsPanel() {
               </div>
 
               {activeTab === 'pending' && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4, gap: 10 }}>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => handleReject(p.id)}
+                    disabled={rejecting[p.id]}
+                    style={{ padding: '8px 16px', fontSize: 14, backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+                  >
+                    {rejecting[p.id] ? (
+                      <><i className="fa-solid fa-spinner fa-spin" /> Rejecting...</>
+                    ) : (
+                      <><i className="fa-solid fa-xmark" /> Reject</>
+                    )}
+                  </button>
                   <button 
                     className="btn-primary"
                     onClick={() => handleApprove(p.id)}
@@ -159,7 +190,7 @@ export default function AdminPaymentsPanel() {
                     {approving[p.id] ? (
                       <><i className="fa-solid fa-spinner fa-spin" /> Approving...</>
                     ) : (
-                      <><i className="fa-solid fa-check" /> Override & Approve</>
+                      <><i className="fa-solid fa-check" /> Approve</>
                     )}
                   </button>
                 </div>

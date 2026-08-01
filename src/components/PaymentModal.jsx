@@ -7,40 +7,68 @@ import { PAYMENT_ACCOUNTS } from '../utils/constants';
 /**
  * Extracts Transaction Reference ID from OCR text using regex patterns
  */
-export function extractTxnId(text, paymentMethod = 'telebirr') {
-  if (!text) return '';
+export function extractPaymentData(text, paymentMethod = 'telebirr') {
+  if (!text) return { txnId: '', amount: null, date: null, time: null };
 
+  let txnId = '';
   // 1. CBE Specific: Starts with FT followed by 10-14 alphanumeric chars
   const cbeMatch = text.match(/FT[A-Z0-9]{10,14}/i);
-  if (cbeMatch) return cbeMatch[0].toUpperCase();
-
-  // 2. Telebirr / General Specific: Look for keywords like Transaction ID, Txn ID, Ref No
-  const keywordMatch = text.match(/(?:Transaction\s*ID|Txn\s*ID|Ref\s*No|Reference|Ref)[:\s]*([A-Z0-9]{8,16})/i);
-  if (keywordMatch && keywordMatch[1]) {
-    return keywordMatch[1].toUpperCase();
+  if (cbeMatch) txnId = cbeMatch[0].toUpperCase();
+  else {
+    // 2. Telebirr / General Specific: Look for keywords like Transaction ID, Txn ID, Ref No
+    const keywordMatch = text.match(/(?:Transaction\s*ID|Txn\s*ID|Ref\s*No|Reference|Ref)[:\s]*([A-Z0-9]{8,16})/i);
+    if (keywordMatch && keywordMatch[1]) {
+      txnId = keywordMatch[1].toUpperCase();
+    } else {
+      // 3. Fallback Alphanumeric pattern: 10-12 alphanumeric characters
+      const telebirrMatch = text.match(/\b[A-Z0-9]{10,12}\b/i);
+      if (telebirrMatch) txnId = telebirrMatch[0].toUpperCase();
+    }
   }
 
-  // 3. Fallback Alphanumeric pattern: 10-12 alphanumeric characters
-  const telebirrMatch = text.match(/\b[A-Z0-9]{10,12}\b/i);
-  if (telebirrMatch) return telebirrMatch[0].toUpperCase();
+  let amount = null;
+  const amtMatch = text.match(/(?:Amount|ETB|Br|Birr)[\s:]*([\d,]+\.?\d*)/i);
+  if (amtMatch) amount = parseFloat(amtMatch[1].replace(/,/g, ''));
 
-  return '';
+  let date = null;
+  let time = null;
+  const dateMatch = text.match(/\b(\d{2,4}[-/]\d{1,2}[-/]\d{1,4})\b/);
+  if (dateMatch) date = dateMatch[1];
+  const timeMatch = text.match(/\b(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?)\b/);
+  if (timeMatch) time = timeMatch[1];
+
+  return { txnId, amount, date, time };
 }
 
-export async function matchBankSms(txnId, orderAmount) {
+export async function matchBankSms(ocrData, manualTxnId, orderAmount) {
   try {
-    const cleanTxn = txnId ? txnId.trim() : '';
-    if (!cleanTxn) return { matched: false };
+    const finalTxn = manualTxnId ? manualTxnId.trim() : (ocrData?.txnId || '');
+    if (!finalTxn) return { matched: false, status: 'pending_verification' };
+
+    // Rule 1: Duplicate Prevention
+    const { data: existingOrder } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('txn_id', finalTxn)
+      .limit(1);
+    
+    if (existingOrder && existingOrder.length > 0) {
+      return { 
+        matched: false, 
+        rejected: true, 
+        errorMsg: 'Transaction already used. Payment rejected.' 
+      };
+    }
 
     const { data, error } = await supabase
       .from('bank_sms_logs')
       .select('*')
-      .or(`txn_id.eq.${cleanTxn},reference.eq.${cleanTxn},message.ilike.%${cleanTxn}%`)
+      .or(`txn_id.eq.${finalTxn},reference.eq.${finalTxn},message.ilike.%${finalTxn}%`)
       .limit(1);
 
     if (error) {
       console.warn('[PaymentModal] bank_sms_logs check warning:', error.message);
-      return { matched: false };
+      return { matched: false, status: 'pending_verification' };
     }
 
     if (data && data.length > 0) {
@@ -49,19 +77,24 @@ export async function matchBankSms(txnId, orderAmount) {
       const requiredAmount = parseFloat(orderAmount) || 0;
       
       if (logAmount >= requiredAmount) {
-        return { matched: true };
+        // Rule 3: Date match or OCR data check
+        if (!ocrData || !ocrData.date) {
+          return { matched: false, status: 'pending_verification' };
+        }
+        return { matched: true, status: 'auto_verified' };
       } else {
         return { 
           matched: false, 
+          status: 'pending_verification',
           amountError: `Payment amount mismatch! Required: Br ${requiredAmount.toFixed(2)}, Received: Br ${logAmount.toFixed(2)}` 
         };
       }
     }
     
-    return { matched: false };
+    return { matched: false, status: 'pending_verification' };
   } catch (err) {
     console.warn('[PaymentModal] bank_sms_logs check catch:', err);
-    return { matched: false };
+    return { matched: false, status: 'pending_verification' };
   }
 }
 
@@ -96,6 +129,8 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
   const { showToast } = useApp();
   const [inputTab, setInputTab] = useState('manual'); // 'manual' or 'ocr'
   const [txnId, setTxnId] = useState('');
+  const [hasCopied, setHasCopied] = useState(false);
+  const [extractedData, setExtractedData] = useState(null);
   const [detectedTxnId, setDetectedTxnId] = useState('');
   const [receiptFile, setReceiptFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -150,11 +185,12 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
       const { data: { text } } = await worker.recognize(optimizedImage);
       await worker.terminate();
 
-      const extracted = extractTxnId(text, paymentMethod);
-      if (extracted) {
-        setDetectedTxnId(extracted);
-        setTxnId(extracted);
-        showToast(`Detected Txn ID: ${extracted}`, 'var(--color-success)');
+      const extracted = extractPaymentData(text, paymentMethod);
+      setExtractedData(extracted);
+      if (extracted.txnId) {
+        setDetectedTxnId(extracted.txnId);
+        setTxnId(extracted.txnId);
+        showToast(`Detected Txn ID: ${extracted.txnId}`, 'var(--color-success)');
       } else {
         setModalError('Could not auto-detect Transaction ID from image. Please verify text or enter manually.');
       }
@@ -205,17 +241,20 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
         }
       }
 
-      // Check if real-time matching with bank_sms_logs succeeds
-      const matchResult = await matchBankSms(finalTxnId, order.total_price);
+      // Check match and status routing
+      const matchResult = await matchBankSms(extractedData, finalTxnId, order.total_price);
+      
+      if (matchResult.rejected) {
+        setModalError(matchResult.errorMsg);
+        setIsSubmitting(false);
+        return; // immediate rejection rule 1
+      }
       
       if (matchResult.amountError) {
-        setModalError(matchResult.amountError);
-        setIsSubmitting(false);
-        return; // reject payment
+        showToast(matchResult.amountError, 'var(--color-warning)');
       }
 
-      const isBankMatched = matchResult.matched;
-      const newPaymentStatus = isBankMatched ? 'paid' : 'pending_verification';
+      const newPaymentStatus = matchResult.status || 'pending_verification';
 
       const { error: updateErr } = await supabase
         .from('orders')
@@ -229,10 +268,10 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
 
       if (updateErr) throw updateErr;
 
-      if (isBankMatched) {
-        showToast('Payment Automatically Verified & Marked PAID! 🎉', 'var(--color-success)');
+      if (newPaymentStatus === 'auto_verified') {
+        showToast('Payment Auto-Verified! 🎉', 'var(--color-success)');
       } else {
-        showToast('Payment submitted! Pending verification with bank SMS logs. ⏳', 'var(--color-warning)');
+        showToast('Waiting for restaurant approval... ⏳', 'var(--color-warning)');
       }
 
       if (onSuccess) onSuccess();
@@ -277,10 +316,33 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Amount to Pay</span>
             <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-accent)' }}>Br {parseFloat(order.total_price).toFixed(2)}</span>
           </div>
-          <div style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>
-            Account: <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>{accountInfo.number}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>
+              Account: <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>{accountInfo.number}</span>
+            </div>
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(accountInfo.number);
+                setHasCopied(true);
+                showToast('Account number copied!', 'var(--color-success)');
+              }}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.1)', border: 'none', padding: '6px 12px', borderRadius: '6px', color: '#fff', fontSize: 12, cursor: 'pointer'
+              }}
+            >
+              <i className="fa-solid fa-copy"></i> Copy
+            </button>
           </div>
         </div>
+
+        {!hasCopied && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--color-text-muted)', fontSize: 14 }}>
+            Please copy the account number and make the payment first.
+          </div>
+        )}
+
+        {hasCopied && (
+          <>
 
         {/* Tab Selection */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, backgroundColor: '#0f0f17', padding: 4, borderRadius: 10, border: '1px solid #29293d' }}>
@@ -411,6 +473,8 @@ export default function PaymentModal({ order, paymentMethod, onClose, onSuccess 
               </div>
             )}
           </div>
+        )}
+        </>
         )}
 
         {/* Error message */}

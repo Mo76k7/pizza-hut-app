@@ -319,10 +319,11 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
 
           <div className="payment-shortcuts" style={{ marginBottom: 12 }}>
             {[
-              { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
-              { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
-              { id: 'chapa',    label: 'Chapa',    icon: 'fa-globe' },
-              { id: 'cash',     label: t('cash'),  icon: 'fa-money-bill' },
+              { id: 'telebirr',       label: 'Telebirr',       icon: 'fa-mobile-screen' },
+              { id: 'cbe',            label: 'CBE Birr',       icon: 'fa-building-columns' },
+              { id: 'mpesa',          label: 'M-Pesa',         icon: 'fa-mobile-button' },
+              { id: 'bank_transfer',  label: 'Bank Transfer',  icon: 'fa-building-columns' },
+              { id: 'cash',           label: t('cash'),        icon: 'fa-money-bill' },
             ].map(({ id, label, icon }) => (
               <button
                 key={id}

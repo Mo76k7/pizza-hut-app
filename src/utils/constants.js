@@ -125,7 +125,8 @@ export const TRANSLATIONS = {
 export const PAYMENT_ACCOUNTS = {
   telebirr: { number: '0905909090', name: 'Pizza Hut Telebirr' },
   cbe:      { number: '0987878787', name: 'Pizza Hut CBE Birr' },
-  chapa:    { number: '0989',       name: 'Pizza Hut Chapa' },
+  mpesa:    { number: '0977777777', name: 'Pizza Hut M-Pesa' },
+  bank_transfer: { number: '100034343434', name: 'Pizza Hut Bank Transfer' },
   cash:     { number: 'Pay to Waiter', name: 'Cash Payment at Table' },
 };
 
