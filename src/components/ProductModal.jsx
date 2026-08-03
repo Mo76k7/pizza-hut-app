@@ -93,220 +93,147 @@ export default function ProductModal({ item, onClose }) {
 
   const modalContent = (
     <div
-      className="modal-overlay"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        zIndex: 999999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        boxSizing: 'border-box',
-      }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999999] flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget && onClose) onClose();
       }}
       role="dialog"
       aria-modal="true"
-      aria-label={itemName}
     >
       <div
-        className="modal-sheet product-modal-card"
+        className="w-full sm:max-w-[440px] max-h-[90vh] bg-black/40 backdrop-blur-2xl sm:rounded-[32px] rounded-t-[32px] overflow-hidden shadow-2xl border-t border-white/10 sm:border relative flex flex-col animate-slideUp"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: '520px',
-          maxHeight: '90vh',
-          backgroundColor: '#161622',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          borderRadius: '20px',
-          padding: '20px',
-          overflowY: 'auto',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9)',
-          color: '#ffffff',
-          position: 'relative',
-          animation: 'none',
-          transform: 'none',
-        }}
       >
-        {/* Header with Title and Prominent X Close Button */}
-        <div className="modal-close-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h3
-            className="display-title"
-            id="modal-item-name"
-            style={{ fontSize: 'clamp(18px, 4vw, 22px)', margin: 0, color: '#ffffff', fontWeight: 700 }}
-          >
-            {itemName}
-          </h3>
+        {/* Top actions overlay on image */}
+        <div className="absolute top-4 left-4 right-4 flex justify-between z-10">
           <button
-            className="modal-close-btn"
             onClick={onClose}
-            aria-label="Close"
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              color: '#ffffff',
-              width: '34px',
-              height: '34px',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '15px',
-              flexShrink: 0,
-            }}
+            className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-black/50 transition-colors"
           >
-            <i className="fa-solid fa-xmark" />
+            <i className="fa-solid fa-chevron-left"></i>
+          </button>
+          <button className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-red-500 flex items-center justify-center hover:bg-black/50 transition-colors">
+             <i className="fa-solid fa-heart"></i>
           </button>
         </div>
 
-        {/* Image */}
-        <div className="modal-img-container" style={{ width: '100%', borderRadius: 14, overflow: 'hidden', marginBottom: 14, backgroundColor: '#0f0f17' }}>
+        {/* Hero Image */}
+        <div className="w-full h-64 sm:h-72 relative shrink-0">
           <img
-            id="modal-item-img"
             src={item.image_url || '/pizza-placeholder.jpg'}
             alt={itemName}
-            className="modal-img"
+            className="w-full h-full object-cover"
             onError={(e) => { e.target.src = '/pizza-placeholder.jpg'; }}
-            style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }}
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
         </div>
 
-        {/* Description */}
-        {itemDesc ? (
-          <p id="modal-item-desc" className="modal-desc" style={{ color: 'var(--color-text-muted)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
-            {itemDesc}
-          </p>
-        ) : null}
+        {/* Scrollable Content Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 hide-scrollbar">
+          
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Spicy</span>
+            <span className="bg-white/10 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10">Popular</span>
+          </div>
 
-        {/* Crust options (Pizza only) */}
-        {isPizza && (
-          <div id="crust-options-container" style={{ marginBottom: 14 }}>
-            <div className="options-group-title" style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
-              {t ? t('crust_type') : 'Crust Type'}
+          <h3 className="text-2xl font-bold text-white mb-2 leading-tight">
+            {itemName}
+          </h3>
+
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-star text-orange-400 text-sm"></i>
+              <span className="text-white font-bold text-sm">4.8</span>
+              <span className="text-gray-400 text-xs">(120)</span>
             </div>
-            <div className="crust-options" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-              {CRUSTS.map(({ id: crustId, label }) => (
-                <div
-                  key={crustId}
-                  className={`crust-btn ${crust === crustId ? 'active' : ''}`}
-                  id={`crust-${crustId}`}
-                  onClick={() => setCrust(crustId)}
-                  role="button"
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    textAlign: 'center',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    backgroundColor: crust === crustId ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
-                    color: crust === crustId ? '#ffffff' : 'rgba(255,255,255,0.8)',
-                    border: crust === crustId ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
-                  }}
-                >
-                  {label}
+            <span className="text-orange-500 font-bold text-lg">Br {calcPrice(item, size, crust)}</span>
+          </div>
+
+          {itemDesc && (
+            <p className="text-gray-400 text-[13px] leading-relaxed mb-6">
+              {itemDesc}
+            </p>
+          )}
+
+          {/* Customization Section */}
+          <div className="border-t border-white/10 pt-4 mb-2">
+            <h4 className="text-white font-bold text-[15px] mb-4">Customize</h4>
+
+            {hasSizes && (
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-gray-300 text-[13px]">Size</span>
+                <div className="flex gap-2 bg-white/5 p-1 rounded-full border border-white/5">
+                  {SIZES.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSize(s)}
+                      className={`px-4 py-1.5 rounded-full text-[12px] font-bold transition-all ${
+                        size === s ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.4)]' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        {/* Size options (Any item with sizes) */}
-        {hasSizes && (
-          <div id="size-options-container" style={{ marginBottom: 14 }}>
-            <div className="options-group-title" style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
-              {t ? t('select_size') : 'Select Size'}
-            </div>
-            <div className="selector-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {SIZES.map((s) => {
-                const p = item.prices_json?.[s] || item.base_price || item.price || 0;
-                return (
-                  <div
-                    key={s}
-                    className={`selector-btn ${size === s ? 'active' : ''}`}
-                    id={`size-${s}`}
-                    onClick={() => setSize(s)}
-                    role="button"
-                    style={{
-                      padding: '10px 8px',
-                      borderRadius: 8,
-                      textAlign: 'center',
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      backgroundColor: size === s ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
-                      color: size === s ? '#ffffff' : 'rgba(255,255,255,0.8)',
-                      border: size === s ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
-                    }}
-                  >
-                    <div style={{ fontWeight: 600 }}>{s.charAt(0).toUpperCase() + s.slice(1)}</div>
-                    <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>Br {p}</div>
-                  </div>
-                );
-              })}
-            </div>
+            {isPizza && (
+              <div className="flex flex-col gap-3 mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-300 text-[13px]">Crust Type</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {CRUSTS.map(({ id: crustId, label }) => (
+                    <button
+                      key={crustId}
+                      onClick={() => setCrust(crustId)}
+                      className={`py-2 rounded-xl text-[12px] font-bold transition-all border ${
+                        crust === crustId 
+                          ? 'bg-orange-500/20 border-orange-500 text-orange-400' 
+                          : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Quantity + Add button */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '16px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-          paddingTop: '14px',
-          gap: '12px',
-        }}>
-          <div className="qty-selector" style={{ display: 'flex', alignItems: 'center', gap: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: 8, padding: '4px 8px' }}>
+        {/* Bottom Bar */}
+        <div className="p-4 sm:p-6 pt-2 shrink-0 bg-black/20 backdrop-blur-md border-t border-white/5">
+          <div className="flex items-center gap-4">
+            
+            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full px-2 py-1 h-[52px]">
+              <button
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                className="w-10 h-10 rounded-full text-white text-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                −
+              </button>
+              <span className="text-white font-bold text-lg min-w-[20px] text-center">
+                {qty}
+              </span>
+              <button
+                onClick={() => setQty((q) => Math.min(10, q + 1))}
+                className="w-10 h-10 rounded-full text-white text-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                +
+              </button>
+            </div>
+
             <button
-              className="qty-btn"
-              onClick={() => setQty((q) => Math.max(1, q - 1))}
-              aria-label="Decrease quantity"
-              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', width: 28, height: 28 }}
+              onClick={handleAddToCart}
+              className="flex-1 h-[52px] bg-gradient-to-r from-orange-500 to-orange-400 rounded-full flex items-center justify-between px-6 shadow-[0_8px_20px_rgba(249,115,22,0.4)] transition-transform hover:scale-[1.02]"
             >
-              −
+              <span className="text-white font-bold text-[15px]">Add to Cart</span>
+              <span className="text-orange-100 font-bold text-[15px] pl-4 border-l border-white/20">Br {totalPrice.toFixed(2)}</span>
             </button>
-            <span className="qty-value" id="modal-qty-display" style={{ fontSize: 15, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>
-              {qty}
-            </span>
-            <button
-              className="qty-btn"
-              onClick={() => setQty((q) => Math.min(10, q + 1))}
-              aria-label="Increase quantity"
-              style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', width: 28, height: 28 }}
-            >
-              +
-            </button>
+            
           </div>
-
-          <button
-            className="btn-primary"
-            style={{
-              margin: 0,
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: 10,
-              backgroundColor: 'var(--color-primary)',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: 15,
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(225, 29, 72, 0.4)',
-            }}
-            onClick={handleAddToCart}
-            id="modal-add-btn"
-          >
-            {t ? t('add_to_tray') : 'Add to Tray'} — Br {totalPrice.toFixed(2)}
-          </button>
         </div>
       </div>
     </div>

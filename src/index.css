@@ -3,6 +3,25 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl;
+  }
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-xl border border-white/20 shadow-xl hover:bg-white/15 transition-all duration-300;
+  }
+  .glass-input {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 /* ============================================================
    GLOBAL DESIGN SYSTEM — matches MP.html & 3pagevisaul.html
    ============================================================ */
@@ -14,9 +33,9 @@
   --color-primary: #EE1945;
   --color-primary-dark: #B80F32;
   --color-accent: #FFAA00;
-  --color-bg: #0A0A0C;
+  --color-bg: #050505; /* Deep black base */
   --color-text-main: #FFFFFF;
-  --color-text-muted: #CBD5E1;
+  --color-text-muted: #9CA3AF;
   --color-success: #10B981;
   --color-error: #EF4444;
   --color-warning: #F59E0B;
@@ -71,7 +90,7 @@ body {
 }
 
 body {
-  background-color: #040405;
+  background-color: #000000;
   font-family: var(--font-sans);
   color: var(--color-text-main);
   display: flex;
@@ -105,7 +124,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
-  filter: blur(60px);
+  filter: blur(120px); /* Increased blur for glowing effect */
   pointer-events: none;
   overflow: hidden;
 }
@@ -118,29 +137,29 @@ body {
 }
 
 .blob-1 {
-  width: 40vmax;
-  height: 40vmax;
+  width: 45vmax;
+  height: 45vmax;
   top: -10%;
   left: -15%;
-  background: #EE1945;
+  background: #FF5A00; /* Warm Orange */
   animation-delay: 0s;
 }
 
 .blob-2 {
-  width: 35vmax;
-  height: 35vmax;
+  width: 40vmax;
+  height: 40vmax;
   bottom: -5%;
   right: -15%;
-  background: #FF7E5F;
+  background: #8B5CF6; /* Deep Purple */
   animation-delay: -7s;
 }
 
 .blob-3 {
-  width: 30vmax;
-  height: 30vmax;
+  width: 35vmax;
+  height: 35vmax;
   top: 35%;
   left: 30%;
-  background: #6A11CB;
+  background: #F97316; /* Amber/Orange */
   animation-delay: -14s;
 }
 

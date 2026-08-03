@@ -3,9 +3,8 @@ import { useApp } from '../context/AppContext';
 import { supabase } from '../supabaseClient';
 import { PAYMENT_ACCOUNTS } from '../utils/constants';
 import RatingModal from '../components/RatingModal';
-import PaymentModal from '../components/PaymentModal';
 
-const STATUS_STEPS = ['received', 'ready'];
+const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
 
 const STATUS_META = {
   received:  { icon: 'fa-clock',          color: 'var(--color-warning)',  pulse: true  },
@@ -159,9 +158,6 @@ export default function TrackerView({ onNavigate }) {
 // ──────────────────────────────────────────────
 function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const { showToast } = useApp();
-  const [selectedPayment, setSelectedPayment] = useState('telebirr');
-  const [paymentModal, setPaymentModal] = useState(false);
-  const [showReceipt, setShowReceipt] = useState(false);
 
   const status = order?.status || 'received';
   const isRejected = status === 'rejected' || status === 'cancelled';
@@ -199,42 +195,17 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
     }
   };
 
-  const handleCashCheckout = async () => {
-    try {
-      await supabase
-        .from('orders')
-        .update({ payment_method: 'cash', payment_status: 'unpaid' })
-        .eq('id', order.id);
-      onRefresh();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const getStepStatusIndex = (st) => {
-    switch (st) {
-      case 'received': return 0;
-      case 'accepted': return 0;
-      case 'preparing': return 0;
-      case 'ready': return 1;
-      case 'completed': return 1;
-      default: return 0;
-    }
-  };
-
-  const currentStepIndex = getStepStatusIndex(status);
-
   const timelineSteps = isRejected
     ? [
         { label: t('status_received'), done: true },
         { label: t('status_rejected'), done: true, isReject: true },
       ]
-    : STATUS_STEPS.map((s, idx) => ({
+    : STATUS_STEPS.map((s) => ({
         id: s,
         label: t(`status_${s}`),
-        done: idx <= currentStepIndex,
-        active: idx === currentStepIndex,
-        isPreparing: false,
+        done: STATUS_STEPS.indexOf(s) <= STATUS_STEPS.indexOf(status),
+        active: s === status,
+        isPreparing: s === 'preparing' && status === 'preparing',
       }));
 
   return (
@@ -276,10 +247,21 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         </div>
       )}
 
+      {/* Pulse ring with status icon */}
+      <div className="pulse-ring" style={{ borderColor: meta.color, background: `${meta.color}22` }}>
+        <i className={`fa-solid ${meta.icon}`} style={{ fontSize: 26, color: meta.color }} />
+      </div>
+
       {/* Order Status Title */}
-      <h3 style={{ fontSize: 'clamp(17px,4vw,20px)', marginBottom: 16, color: '#FFF', textAlign: 'center' }}>
+      <h3 style={{ fontSize: 'clamp(17px,4vw,20px)', marginBottom: 4, color: '#FFF', textAlign: 'center' }}>
         {isRejected ? t('status_rejected') : t(`status_${status}`)}
       </h3>
+
+      {!isRejected && status !== 'completed' && (
+        <p style={{ fontSize: 12, color: 'var(--color-accent)', marginBottom: 16, fontWeight: 600, textAlign: 'center' }}>
+          ⏱ {t('est_time')}
+        </p>
+      )}
 
       {/* Timeline Steps */}
       <div className="timeline">
@@ -297,203 +279,94 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         })}
       </div>
 
-      {/* Collapsible Order Summary */}
-      <div style={{ marginTop: 14, backgroundColor: '#0f0f17', borderRadius: 8, border: '1px solid #28283a' }}>
-        <button
-          onClick={() => setShowReceipt(!showReceipt)}
-          style={{ width: '100%', padding: 16, background: 'none', border: 'none', color: '#fff', fontSize: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontWeight: 600 }}
-        >
-          <span>🛒 View Order Summary (Br {parseFloat(order.total_price || 0).toFixed(2)})</span>
-          <i className={`fa-solid fa-chevron-${showReceipt ? 'up' : 'down'}`} style={{ color: 'var(--color-primary)' }} />
-        </button>
-        {showReceipt && (
-          <div style={{ padding: '0 16px 16px 16px' }}>
-            {/* Items List */}
-            {order.order_items && order.order_items.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
-                  Items Ordered
-                </div>
-                {order.order_items.map((it) => (
-                  <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#fff', marginBottom: 4 }}>
-                    <span>{it.quantity}x {it.item_name} {it.selected_size ? `(${it.selected_size})` : ''}</span>
-                    <span>Br {(it.price_at_order * it.quantity).toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Price Summary */}
-            <div style={{ paddingTop: 12, borderTop: '1px solid var(--glass-border)', textAlign: 'left' }}>
-              <div className="summary-row">
-                <span>{t('subtotal')}</span>
-                <span>Br {parseFloat(order.subtotal || 0).toFixed(2)}</span>
-              </div>
-              <div className="summary-row tax-row">
-                <span>VAT (15%)</span>
-                <span>Br {parseFloat(order.vat || 0).toFixed(2)}</span>
-              </div>
-              <div className="summary-row tax-row">
-                <span>{t('service')}</span>
-                <span>Br {parseFloat(order.service_fee || 0).toFixed(2)}</span>
-              </div>
-              <div className="summary-row total">
-                <span>{t('total')}</span>
-                <span>Br {parseFloat(order.total_price || 0).toFixed(2)}</span>
-              </div>
-            </div>
+      {/* Items List */}
+      {order.order_items && order.order_items.length > 0 && (
+        <div style={{ marginTop: 14, backgroundColor: '#0f0f17', padding: 12, borderRadius: 8, border: '1px solid #28283a' }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+            Items Ordered
           </div>
-        )}
-      </div>
-
-      {/* Payment Selection */}
-      {(isUnpaid || isRejectedPayment) && (
-        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)' }}>
-          {isRejectedPayment && (
-            <div style={{ marginBottom: 12, padding: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8 }}>
-              <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                <i className="fa-solid fa-triangle-exclamation" /> Payment Verification Failed
-              </div>
-              <div style={{ color: '#ffcdcd', fontSize: 13 }}>
-                {rejectionReason || 'Your uploaded receipt could not be verified.'}
-              </div>
-              <div style={{ color: '#ccc', fontSize: 12, marginTop: 4 }}>
-                Please check your transaction details and retry.
-              </div>
+          {order.order_items.map((it) => (
+            <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#fff', marginBottom: 4 }}>
+              <span>{it.quantity}x {it.item_name} {it.selected_size ? `(${it.selected_size})` : ''}</span>
+              <span>Br {(it.price_at_order * it.quantity).toFixed(2)}</span>
             </div>
-          )}
-          <h4 style={{ color: '#fff', marginBottom: 12, fontSize: 15, fontWeight: 600 }}>Select Payment Method</h4>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-            {[
-              { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
-              { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
-              { id: 'cash',     label: t('cash') || 'Cash',  icon: 'fa-money-bill' },
-            ].map(({ id, label, icon }) => {
-              const isSelected = selectedPayment === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setSelectedPayment(id)}
-                  style={{
-                    width: '100%',
-                    padding: '14px',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    borderRadius: 10,
-                    border: isSelected ? '2px solid var(--color-primary)' : '1px solid #28283a',
-                    backgroundColor: isSelected ? 'rgba(238, 25, 69, 0.1)' : '#0f0f17',
-                    color: isSelected ? 'var(--color-primary)' : '#fff',
-                    transition: 'all 0.2s',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <i className={`fa-solid ${icon}`} style={{ fontSize: 18 }} />
-                  {label}
-                  {isSelected && <i className="fa-solid fa-circle-check" style={{ marginLeft: 'auto', fontSize: 16 }} />}
-                </button>
-              );
-            })}
-          </div>
+          ))}
         </div>
       )}
 
-      {/* Sticky Footer for Actions */}
-      <div style={{
-        position: 'sticky',
-        bottom: 0,
-        backgroundColor: '#0a0a0c',
-        padding: '16px 0',
-        borderTop: '1px solid #28283a',
-        marginTop: 20,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        zIndex: 10
-      }}>
-        {/* Post-Payment Rating Prompt / Button (When Paid) */}
-        {isPaid && (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', width: '100%' }}>
-            <button
-              className="btn-primary"
-              style={{ flex: 1, margin: 0, backgroundColor: '#F59E0B', color: '#000', fontWeight: 700 }}
-              onClick={onOpenRating}
-            >
-              <i className="fa-solid fa-star" /> {isRated ? 'Edit Rating & Feedback' : 'Rate Your Meal ⭐'}
-            </button>
+      {/* Price Summary */}
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--glass-border)', textAlign: 'left' }}>
+        <div className="summary-row">
+          <span>{t('subtotal')}</span>
+          <span>Br {parseFloat(order.subtotal || 0).toFixed(2)}</span>
+        </div>
+        <div className="summary-row tax-row">
+          <span>VAT (15%)</span>
+          <span>Br {parseFloat(order.vat || 0).toFixed(2)}</span>
+        </div>
+        <div className="summary-row tax-row">
+          <span>{t('service')}</span>
+          <span>Br {parseFloat(order.service_fee || 0).toFixed(2)}</span>
+        </div>
+        <div className="summary-row total">
+          <span>{t('total')}</span>
+          <span>Br {parseFloat(order.total_price || 0).toFixed(2)}</span>
+        </div>
+      </div>
 
-            {isRated && (
-              <button
-                className="btn-secondary"
-                style={{ width: 'auto', padding: '10px 14px', margin: 0, backgroundColor: 'rgba(255,255,255,0.1)' }}
-                onClick={onRemoveOrder}
-                title="Clear finished order"
-              >
-                Done
-              </button>
-            )}
-          </div>
-        )}
+      {/* Removed Payment Selection Block */}
 
-        {/* Pay Button (When Unpaid or Rejected) */}
-        {(isUnpaid || isRejectedPayment) && (
+      {/* Post-Payment Rating Prompt / Button (When Paid) */}
+      {isPaid && (
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
           <button
             className="btn-primary"
-            style={{ width: '100%', margin: 0 }}
-            onClick={() => {
-              if (selectedPayment === 'cash') {
-                handleCashCheckout();
-              } else {
-                setPaymentModal(true);
-              }
-            }}
+            style={{ flex: 1, margin: 0, backgroundColor: '#F59E0B', color: '#000', fontWeight: 700 }}
+            onClick={onOpenRating}
           >
-            <i className="fa-solid fa-credit-card" /> Pay Bill (Br {parseFloat(order.total_price).toFixed(2)})
+            <i className="fa-solid fa-star" /> {isRated ? 'Edit Rating & Feedback' : 'Rate Your Meal ⭐'}
           </button>
-        )}
 
-        {/* Cancel Order Control */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          {isCancelable ? (
+          {isRated && (
             <button
               className="btn-secondary"
-              onClick={handleCancelOrder}
-              style={{
-                margin: 0,
-                padding: '8px 16px',
-                fontSize: 13,
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                border: 'none',
-                color: '#ef4444',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                justifyContent: 'center'
-              }}
+              style={{ width: 'auto', padding: '10px 14px', margin: 0, backgroundColor: 'rgba(255,255,255,0.1)' }}
+              onClick={onRemoveOrder}
+              title="Clear finished order"
             >
-              <i className="fa-solid fa-ban" /> Cancel Order
+              Done
             </button>
-          ) : (
-            <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-              {isPaid ? '✅ Order Completed & Paid' : '🔒 Order accepted by kitchen — cancellation disabled'}
-            </span>
           )}
         </div>
+      )}
+      {/* Cancel Order Control */}
+      <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {isCancelable ? (
+          <button
+            className="btn-secondary"
+            onClick={handleCancelOrder}
+            style={{
+              margin: 0,
+              padding: '6px 12px',
+              fontSize: 12,
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              borderColor: 'rgba(239, 68, 68, 0.3)',
+              color: '#ef4444',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <i className="fa-solid fa-ban" /> Cancel Order
+          </button>
+        ) : (
+          <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+            {isPaid ? '✅ Order Completed & Paid' : '🔒 Order accepted by kitchen — cancellation disabled'}
+          </span>
+        )}
       </div>
 
-      {/* Payment Modal Component */}
-      {paymentModal && (
-        <PaymentModal
-          order={order}
-          paymentMethod={selectedPayment}
-          onClose={() => setPaymentModal(false)}
-          onSuccess={onRefresh}
-        />
-      )}
+      {/* Removed PaymentModal UI */}
     </div>
   );
 }
