@@ -351,6 +351,7 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
             {[
               { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
               { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
+              { id: 'chapa',    label: 'Chapa',    icon: 'fa-globe' },
               { id: 'cash',     label: t('cash'),  icon: 'fa-money-bill' },
             ].map(({ id, label, icon }) => (
               <button

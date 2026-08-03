@@ -203,7 +203,7 @@ export default function MenuView({ onNavigate, search = '', onSearchChange, fast
           {t('no_items')}
         </div>
       ) : (
-        <div className="product-grid" id="products-target-grid">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 w-full max-w-7xl mx-auto box-border" id="products-target-grid">
           {displayItems.map((item) => (
             <ProductCard
               key={item.id}
@@ -295,20 +295,20 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
 
   return (
     <div
-      className={`product-card ${isSoldOut ? 'sold-out' : ''}`}
+      className={`flex flex-col bg-gray-900 rounded-2xl shadow-md overflow-hidden border border-gray-800 transition-transform ${!isSoldOut ? 'active:scale-[0.98] cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
       id={`card-${item.id}`}
       onClick={!isSoldOut ? () => onOpen(item) : undefined}
       role={isSoldOut ? undefined : 'button'}
       tabIndex={isSoldOut ? undefined : 0}
     >
-      <div className="img-wrapper">
-        {item.popular && <div className="product-badge">{t('popular')}</div>}
-        {isSoldOut && <div className="inventory-badge badge-sold-out">{t('sold_out')}</div>}
-        {isLimited && <div className="inventory-badge badge-limited">{t('limited')}</div>}
+      <div className="relative">
+        {item.popular && <div className="absolute top-2 left-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded shadow-md z-10">{t('popular')}</div>}
+        {isSoldOut && <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow-md z-10">{t('sold_out')}</div>}
+        {isLimited && <div className="absolute top-2 right-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md z-10">{t('limited')}</div>}
         {dietIcons && dietIcons.length > 0 && (
-          <div className="dietary-badges">
+          <div className="absolute bottom-2 left-2 flex gap-1 z-10">
             {dietIcons.map((icon, i) => (
-              <div key={i} className="dietary-icon">{icon}</div>
+              <div key={i} className="bg-black/50 rounded-full w-6 h-6 flex items-center justify-center text-xs">{icon}</div>
             ))}
           </div>
         )}
@@ -316,49 +316,40 @@ function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, 
           src={item.image_url || '/pizza-placeholder.jpg'}
           alt={getItemName(item)}
           loading="lazy"
+          className="w-full h-48 object-cover bg-gray-800"
           onError={(e) => { e.target.src = '/pizza-placeholder.jpg'; }}
         />
       </div>
 
-      <div className="product-info">
-        <h4>{getItemName(item)}</h4>
+      <div className="p-4 flex flex-col flex-grow">
+        <h4 className="text-lg font-bold text-white leading-tight mb-1">{getItemName(item)}</h4>
         
         {/* Dynamic Rating Badge */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '4px',
-          fontSize: '11px',
-          fontWeight: '600',
-          color: '#F59E0B',
-          backgroundColor: 'rgba(245, 158, 11, 0.12)',
-          padding: '2px 6px',
-          borderRadius: '4px',
-          marginBottom: '4px'
-        }}>
+        <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded mb-1 self-start">
           {hasRatings ? (
             <>
               <span>⭐ {avgRating}/5</span>
-              <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>({ratingInfo.count})</span>
+              <span className="text-gray-400 text-[10px]">({ratingInfo.count})</span>
             </>
           ) : (
             <span>⭐ New</span>
           )}
         </div>
 
-        <p>{getItemDesc(item)}</p>
+        <p className="text-sm text-gray-400 line-clamp-2 mb-4">{getItemDesc(item)}</p>
 
-        <div className="product-price-row">
-          <span className="product-price">{displayPrice}</span>
+        <div className="flex items-center justify-between mt-auto pt-2">
+          <span className="text-lg font-bold text-white">{displayPrice}</span>
           {isSoldOut ? (
-            <span style={{ color: '#EF4444', fontSize: '10px' }}>N/A</span>
+            <span className="text-red-500 text-sm font-bold uppercase">N/A</span>
           ) : (
-            <i
-              className="fa-solid fa-circle-plus add-icon-btn"
+            <button
               onClick={handlePlusClick}
               title={hasOptions ? "Select options" : "Add to tray"}
-              role="button"
-            />
+              className="bg-[#E31837] active:bg-red-700 text-white font-bold py-2 px-6 rounded-full flex items-center justify-center min-h-[44px] shadow-md transition-colors"
+            >
+              {hasOptions ? 'Options' : 'Add'}
+            </button>
           )}
         </div>
       </div>

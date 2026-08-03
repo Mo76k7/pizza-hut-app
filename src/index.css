@@ -1,8 +1,14 @@
+/* Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ============================================================
    GLOBAL DESIGN SYSTEM — matches MP.html & 3pagevisaul.html
    ============================================================ */
 
 /* ===== CSS CUSTOM PROPERTIES (Design Tokens) ===== */
+
 :root {
   /* Brand Colors */
   --color-primary: #EE1945;
