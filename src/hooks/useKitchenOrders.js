@@ -19,6 +19,7 @@ export function useKitchenOrders() {
         .eq('branch_location', branch)
         .neq('status', 'completed')
         .neq('status', 'rejected')
+        .or('payment_status.in.(paid,approved),payment_method.eq.cash,payment_method.is.null')
         .order('created_at', { ascending: false });
 
       if (err) throw err;

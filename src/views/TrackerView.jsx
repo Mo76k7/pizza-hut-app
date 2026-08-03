@@ -31,7 +31,7 @@ export default function TrackerView({ onNavigate }) {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select('*, order_items(*)')
+        .select('*, order_items(*), payment_proofs(status, rejection_reason)')
         .in('id', activeOrderIds)
         .order('created_at', { ascending: false });
 
@@ -165,11 +165,18 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const status = order?.status || 'received';
   const isRejected = status === 'rejected' || status === 'cancelled';
   const meta = STATUS_META[status] || STATUS_META.received;
-  const isPaid = order.payment_status === 'paid';
-  const isPendingVerification = order.payment_status === 'pending_verification';
-  const isUnpaid = order.payment_status === 'unpaid';
+  const isPaid = order.payment_status === 'paid' || order.payment_status === 'approved';
+  const isPendingVerification = order.payment_status === 'pending_verification' || order.payment_status === 'pending';
+  const isRejectedPayment = order.payment_status === 'rejected';
+  const isUnpaid = order.payment_status === 'unpaid' || !order.payment_status;
   const isRated = localStorage.getItem(`rated_order_${order.id}`);
   const isCancelable = status === 'received';
+
+  let rejectionReason = null;
+  if (isRejectedPayment && order.payment_proofs) {
+    const rejectedProofs = [...order.payment_proofs].filter(p => p.status === 'rejected' && p.rejection_reason);
+    if (rejectedProofs.length > 0) rejectionReason = rejectedProofs[rejectedProofs.length - 1].rejection_reason;
+  }
 
   const handleCancelOrder = async () => {
     if (!isCancelable) return;
@@ -236,7 +243,11 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           </span>
         ) : isPendingVerification ? (
           <span style={{ backgroundColor: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-            VERIFYING ⏳
+            Waiting for Admin Approval ⏳
+          </span>
+        ) : isRejectedPayment ? (
+          <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+            Payment Rejected ❌
           </span>
         ) : (
           <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
@@ -244,6 +255,12 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           </span>
         )}
       </div>
+
+      {isPaid && (
+        <div style={{ marginBottom: 16, padding: 10, backgroundColor: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 8, color: '#22c55e', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+          ✨ Payment Verified & Approved! Your order is being prepared.
+        </div>
+      )}
 
       {/* Pulse ring with status icon */}
       <div className="pulse-ring" style={{ borderColor: meta.color, background: `${meta.color}22` }}>
@@ -312,16 +329,28 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         </div>
       </div>
 
-      {/* Payment Selection & Pay Button (When Unpaid) */}
-      {isUnpaid && (
+      {/* Payment Selection & Pay Button (When Unpaid or Rejected) */}
+      {(isUnpaid || isRejectedPayment) && (
         <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)' }}>
+          {isRejectedPayment && (
+            <div style={{ marginBottom: 12, padding: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8 }}>
+              <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                <i className="fa-solid fa-triangle-exclamation" /> Payment Verification Failed
+              </div>
+              <div style={{ color: '#ffcdcd', fontSize: 13 }}>
+                {rejectionReason || 'Your uploaded receipt could not be verified.'}
+              </div>
+              <div style={{ color: '#ccc', fontSize: 12, marginTop: 4 }}>
+                Please check your transaction details and retry.
+              </div>
+            </div>
+          )}
           <h4 style={{ color: '#fff', marginBottom: 10, fontSize: 14 }}>{t('payment_method')}</h4>
 
           <div className="payment-shortcuts" style={{ marginBottom: 12 }}>
             {[
               { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
               { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
-              { id: 'chapa',    label: 'Chapa',    icon: 'fa-globe' },
               { id: 'cash',     label: t('cash'),  icon: 'fa-money-bill' },
             ].map(({ id, label, icon }) => (
               <button
