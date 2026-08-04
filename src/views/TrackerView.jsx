@@ -229,7 +229,7 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div>
           <span style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 700 }}>
-            {t('order_number')}{order.order_number}
+            {order.order_number}
           </span>
           <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginLeft: 10 }}>
             • {t('table')} {order.table_number}
@@ -347,7 +347,7 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           )}
           <h4 style={{ color: '#fff', marginBottom: 10, fontSize: 14 }}>{t('payment_method')}</h4>
 
-          <div className="payment-shortcuts" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: 16 }}>
+          <div className="payment-shortcuts" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: 16 }}>
             {[
               { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
               { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
@@ -359,16 +359,20 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
                 onClick={() => setSelectedPayment(id)}
                 style={{
                   width: '100%',
-                  padding: '12px 16px',
-                  fontSize: 14,
+                  padding: '10px 4px',
+                  fontSize: 13,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
-                  borderRadius: '50px'
+                  gap: '6px',
+                  borderRadius: '12px',
+                  backgroundColor: selectedPayment === id ? 'var(--color-accent, #F59E0B)' : 'rgba(255,255,255,0.05)',
+                  color: selectedPayment === id ? '#000' : '#fff',
+                  border: selectedPayment === id ? '1px solid var(--color-accent, #F59E0B)' : '1px solid rgba(255,255,255,0.1)',
+                  fontWeight: selectedPayment === id ? '700' : '500'
                 }}
               >
-                <i className={`fa-solid ${icon}`} style={{ margin: 0 }} />
+                <i className={`fa-solid ${selectedPayment === id ? 'fa-circle-check' : icon}`} style={{ margin: 0 }} />
                 {label}
               </button>
             ))}
