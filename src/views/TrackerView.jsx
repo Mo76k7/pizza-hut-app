@@ -347,7 +347,7 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           )}
           <h4 style={{ color: '#fff', marginBottom: 10, fontSize: 14 }}>{t('payment_method')}</h4>
 
-          <div className="payment-shortcuts" style={{ marginBottom: 12 }}>
+          <div className="payment-shortcuts" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: 16 }}>
             {[
               { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
               { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
@@ -357,9 +357,18 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
                 key={id}
                 className={`payment-btn ${selectedPayment === id ? 'selected' : ''}`}
                 onClick={() => setSelectedPayment(id)}
-                style={{ flex: '1 1 45%', padding: '8px', fontSize: 12 }}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  borderRadius: '50px'
+                }}
               >
-                <i className={`fa-solid ${icon}`} style={{ marginBottom: 2 }} />
+                <i className={`fa-solid ${icon}`} style={{ margin: 0 }} />
                 {label}
               </button>
             ))}
