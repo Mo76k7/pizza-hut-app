@@ -167,6 +167,7 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [isOrderSummaryExpanded, setIsOrderSummaryExpanded] = useState(false);
 
   const status = order?.status || 'received';
   const isRejected = status === 'rejected' || status === 'cancelled';
@@ -436,39 +437,60 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         })}
       </div>
 
-      {/* Items List */}
-      {order.order_items && order.order_items.length > 0 && (
-        <div style={{ marginTop: 14, backgroundColor: '#0f0f17', padding: 12, borderRadius: 8, border: '1px solid #28283a' }}>
-          <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
-            Items Ordered
-          </div>
-          {order.order_items.map((it) => (
-            <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#fff', marginBottom: 4 }}>
-              <span>{it.quantity}x {it.item_name} {it.selected_size ? `(${it.selected_size})` : ''}</span>
-              <span>Br {(it.price_at_order * it.quantity).toFixed(2)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Collapsible Order Summary Accordion */}
+      <div style={{ marginTop: 14, backgroundColor: '#0f0f17', borderRadius: 8, border: '1px solid #28283a', overflow: 'hidden' }}>
+        <button
+          onClick={() => setIsOrderSummaryExpanded(!isOrderSummaryExpanded)}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: 'transparent',
+            border: 'none',
+            color: 'var(--color-accent)',
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <span>🛒 View Order Summary (Br {parseFloat(order.total_price || 0).toFixed(2)})</span>
+          <i className={`fa-solid ${isOrderSummaryExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}`} />
+        </button>
 
-      {/* Price Summary */}
-      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--glass-border)', textAlign: 'left' }}>
-        <div className="summary-row">
-          <span>{t('subtotal')}</span>
-          <span>Br {parseFloat(order.subtotal || 0).toFixed(2)}</span>
-        </div>
-        <div className="summary-row tax-row">
-          <span>VAT (15%)</span>
-          <span>Br {parseFloat(order.vat || 0).toFixed(2)}</span>
-        </div>
-        <div className="summary-row tax-row">
-          <span>{t('service')}</span>
-          <span>Br {parseFloat(order.service_fee || 0).toFixed(2)}</span>
-        </div>
-        <div className="summary-row total">
-          <span>{t('total')}</span>
-          <span>Br {parseFloat(order.total_price || 0).toFixed(2)}</span>
-        </div>
+        {isOrderSummaryExpanded && (
+          <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #28283a' }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600, marginTop: 8 }}>
+              Items Ordered
+            </div>
+            {order.order_items?.map((it) => (
+              <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#fff', marginBottom: 4 }}>
+                <span>{it.quantity}x {it.item_name} {it.selected_size ? `(${it.selected_size})` : ''}</span>
+                <span>Br {(it.price_at_order * it.quantity).toFixed(2)}</span>
+              </div>
+            ))}
+
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--glass-border)', textAlign: 'left' }}>
+              <div className="summary-row">
+                <span>{t('subtotal')}</span>
+                <span>Br {parseFloat(order.subtotal || 0).toFixed(2)}</span>
+              </div>
+              <div className="summary-row tax-row">
+                <span>VAT (15%)</span>
+                <span>Br {parseFloat(order.vat || 0).toFixed(2)}</span>
+              </div>
+              <div className="summary-row tax-row">
+                <span>{t('service')}</span>
+                <span>Br {parseFloat(order.service_fee || 0).toFixed(2)}</span>
+              </div>
+              <div className="summary-row total">
+                <span>{t('total')}</span>
+                <span>Br {parseFloat(order.total_price || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Payment Selection & Pay Button (When Unpaid or Rejected) */}
