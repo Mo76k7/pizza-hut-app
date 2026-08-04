@@ -160,7 +160,12 @@ export default function TrackerView({ onNavigate }) {
 function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const { showToast } = useApp();
   const [selectedPayment, setSelectedPayment] = useState('telebirr');
-  const [paymentModal, setPaymentModal] = useState(false);
+  const [txId, setTxId] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState(null);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const status = order?.status || 'received';
   const isRejected = status === 'rejected' || status === 'cancelled';
@@ -207,6 +212,96 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
       onRefresh();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const accountInfo = PAYMENT_ACCOUNTS[selectedPayment];
+
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setReceiptFile(file);
+      setReceiptPreview(URL.createObjectURL(file));
+    } else {
+      setReceiptFile(null);
+      setReceiptPreview(null);
+    }
+  };
+
+  const handleSubmitDigitalPayment = async () => {
+    if (!txId.trim() && !receiptFile) {
+      setPaymentError('Please provide either a Transaction ID or upload a screenshot.');
+      return;
+    }
+    
+    setIsSubmittingPayment(true);
+    setPaymentError(null);
+
+    try {
+      let receiptUrl = null;
+      if (receiptFile) {
+        const fileExt = receiptFile.name.split('.').pop();
+        const fileName = `${order.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('payment_proofs')
+          .upload(`receipts/${fileName}`, receiptFile, { cacheControl: '3600', upsert: false });
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('payment_proofs')
+          .getPublicUrl(`receipts/${fileName}`);
+          
+        receiptUrl = publicUrlData.publicUrl;
+      }
+
+      const insertData = {
+        order_id: order.id,
+        receipt_url: receiptUrl,
+        status: 'pending'
+      };
+      
+      // Try with transaction_id first if provided
+      if (txId.trim()) {
+        insertData.transaction_id = txId.trim();
+      }
+
+      const { error: proofError } = await supabase
+        .from('payment_proofs')
+        .insert(insertData);
+
+      if (proofError) {
+        if (proofError.message && proofError.message.includes('transaction_id')) {
+          console.warn('transaction_id column might not exist, retrying without it');
+          delete insertData.transaction_id;
+          const { error: fallbackError } = await supabase.from('payment_proofs').insert(insertData);
+          if (fallbackError) throw fallbackError;
+        } else {
+          throw proofError;
+        }
+      }
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ payment_status: 'pending_verification', payment_method: selectedPayment })
+        .eq('id', order.id);
+
+      if (updateError) throw updateError;
+
+      showToast('Payment submitted for verification!', 'var(--color-success)');
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+      setPaymentError(err.message || 'Failed to submit payment. Please try again.');
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -379,17 +474,83 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
             ))}
           </div>
 
+          {/* Inline Digital Payment Details */}
+          {selectedPayment !== 'cash' && accountInfo && (
+            <div style={{ backgroundColor: '#0f0f17', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1px solid #28283a' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Transfer To</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{accountInfo.name}</div>
+                  <div style={{ fontSize: 20, color: 'var(--color-accent)', fontWeight: 800, letterSpacing: '1px', marginTop: 4 }}>
+                    {accountInfo.number}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleCopy(accountInfo.number)}
+                  className="btn-secondary" 
+                  style={{ margin: 0, padding: '6px 10px', fontSize: 12, width: 'auto', backgroundColor: 'rgba(255,255,255,0.05)' }}
+                >
+                  <i className={`fa-solid ${copied ? 'fa-check' : 'fa-copy'}`} /> {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              <div style={{ padding: '10px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', textAlign: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Amount Due:</span>
+                <span style={{ fontSize: 18, fontWeight: 'bold', color: '#fff', marginLeft: '8px' }}>Br {parseFloat(order.total_price).toFixed(2)}</span>
+              </div>
+              
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>Transaction ID / Reference No.</label>
+                <input 
+                  type="text" 
+                  value={txId}
+                  onChange={(e) => setTxId(e.target.value)}
+                  placeholder="e.g. 7X9A234BC"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3a3a4a', backgroundColor: '#181824', color: '#fff', fontSize: 14, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 6 }}>Upload Payment Screenshot/Receipt</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px dashed #3a3a4a', backgroundColor: '#181824', color: '#fff', fontSize: 12, boxSizing: 'border-box' }}
+                />
+              </div>
+              
+              {receiptPreview && (
+                <div style={{ marginTop: '8px', marginBottom: '12px', textAlign: 'center' }}>
+                  <img src={receiptPreview} alt="Receipt Preview" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: '8px', border: '1px solid #3a3a4a' }} />
+                </div>
+              )}
+
+              {paymentError && (
+                <div className="field-error-msg show" style={{ marginBottom: '12px', color: 'var(--color-error)', fontSize: 12 }}>
+                  <i className="fa-solid fa-circle-exclamation" /> {paymentError}
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             className="btn-primary"
+            disabled={isSubmittingPayment || (selectedPayment !== 'cash' && !txId.trim() && !receiptFile)}
             onClick={() => {
               if (selectedPayment === 'cash') {
                 handleCashCheckout();
               } else {
-                setPaymentModal(true);
+                handleSubmitDigitalPayment();
               }
             }}
           >
-            <i className="fa-solid fa-credit-card" /> Pay Bill (Br {parseFloat(order.total_price).toFixed(2)})
+            {isSubmittingPayment ? (
+              <><i className="fa-solid fa-spinner fa-spin" /> Submitting...</>
+            ) : selectedPayment === 'cash' ? (
+              <><i className="fa-solid fa-credit-card" /> Pay Bill (Br {parseFloat(order.total_price).toFixed(2)})</>
+            ) : (
+              <><i className="fa-solid fa-cloud-arrow-up" /> Submit Payment for Verification</>
+            )}
           </button>
         </div>
       )}
@@ -443,16 +604,6 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           </span>
         )}
       </div>
-
-      {/* Payment Modal Component */}
-      {paymentModal && (
-        <PaymentModal
-          order={order}
-          paymentMethod={selectedPayment}
-          onClose={() => setPaymentModal(false)}
-          onSuccess={onRefresh}
-        />
-      )}
     </div>
   );
 }
