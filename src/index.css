@@ -3,25 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .glass-panel {
-    @apply bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl;
-  }
-  .glass-card {
-    @apply bg-white/10 backdrop-blur-xl border border-white/20 shadow-xl hover:bg-white/15 transition-all duration-300;
-  }
-  .glass-input {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all;
-  }
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-}
-
 /* ============================================================
    GLOBAL DESIGN SYSTEM — matches MP.html & 3pagevisaul.html
    ============================================================ */
@@ -33,9 +14,9 @@
   --color-primary: #EE1945;
   --color-primary-dark: #B80F32;
   --color-accent: #FFAA00;
-  --color-bg: #050505; /* Deep black base */
+  --color-bg: #0A0A0C;
   --color-text-main: #FFFFFF;
-  --color-text-muted: #9CA3AF;
+  --color-text-muted: #CBD5E1;
   --color-success: #10B981;
   --color-error: #EF4444;
   --color-warning: #F59E0B;
@@ -90,7 +71,7 @@ body {
 }
 
 body {
-  background-color: #000000;
+  background-color: #040405;
   font-family: var(--font-sans);
   color: var(--color-text-main);
   display: flex;
@@ -124,7 +105,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
-  filter: blur(120px); /* Increased blur for glowing effect */
+  filter: blur(60px);
   pointer-events: none;
   overflow: hidden;
 }
@@ -137,29 +118,29 @@ body {
 }
 
 .blob-1 {
-  width: 45vmax;
-  height: 45vmax;
+  width: 40vmax;
+  height: 40vmax;
   top: -10%;
   left: -15%;
-  background: #FF5A00; /* Warm Orange */
+  background: #EE1945;
   animation-delay: 0s;
 }
 
 .blob-2 {
-  width: 40vmax;
-  height: 40vmax;
+  width: 35vmax;
+  height: 35vmax;
   bottom: -5%;
   right: -15%;
-  background: #8B5CF6; /* Deep Purple */
+  background: #FF7E5F;
   animation-delay: -7s;
 }
 
 .blob-3 {
-  width: 35vmax;
-  height: 35vmax;
+  width: 30vmax;
+  height: 30vmax;
   top: 35%;
   left: 30%;
-  background: #F97316; /* Amber/Orange */
+  background: #6A11CB;
   animation-delay: -14s;
 }
 
@@ -307,7 +288,7 @@ body {
 .utility-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 8px 4vw;
   background: rgba(18, 18, 24, 0.4);
   backdrop-filter: var(--glass-blur);

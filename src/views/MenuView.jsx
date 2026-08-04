@@ -1,7 +1,8 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useMenu } from '../hooks/useMenu';
 import ProductModal from '../components/ProductModal';
+
 import { triggerFlyToCartAnimation } from '../utils/animations';
 
 const DIETARY_ICONS = { spicy: '🌶️', vegetarian: '🌱', fasting: '✝️' };
@@ -18,19 +19,25 @@ function getBasePrice(item) {
   return item.base_price || item.price || 0;
 }
 
-export default function MenuView({ onNavigate, search = '', onSearchChange }) {
+export default function MenuView({ onNavigate, search = '', onSearchChange, fastingOnly = false, onFastingToggle }) {
   const { lang, getItemName, getItemDesc, getCatName, t, cartCount } = useApp();
   const { categories, itemsByCategory, ratingsMap, loading, error } = useMenu();
 
   const [activeCategory, setActiveCategory] = useState('all');
+  const [sort, setSort] = useState('default');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [modalItem, setModalItem] = useState(null);
   const categoryScrollRef = useRef(null);
 
-  // Items for current category + filtering
+  // Determine active category object for title
+  const activeCat = categories.find((c) => c.id === activeCategory);
+
+  // Items for current category + filtering + sorting
   const displayItems = useMemo(() => {
     let items = [];
 
     if (search.trim()) {
+      // Search across all categories
       Object.values(itemsByCategory).flat().forEach((item) => {
         const n = getItemName(item).toLowerCase();
         const d = getItemDesc(item).toLowerCase();
@@ -46,136 +53,166 @@ export default function MenuView({ onNavigate, search = '', onSearchChange }) {
       }
     }
 
-    // Default Sorting (Popular first)
-    return items.sort((a, b) => {
-      if (a.popular && !b.popular) return -1;
-      if (!a.popular && b.popular) return 1;
-      return 0;
-    });
-  }, [activeCategory, itemsByCategory, search, getItemName, getItemDesc]);
+    // Fasting filter
+    if (fastingOnly) {
+      items = items.filter(
+        (i) => i.is_fasting === true || (i.dietary_tags || []).includes('fasting')
+      );
+    }
+
+    // Sorting
+    const sorted = [...items];
+    switch (sort) {
+      case 'price-asc':
+        sorted.sort((a, b) => getBasePrice(a) - getBasePrice(b));
+        break;
+      case 'price-desc':
+        sorted.sort((a, b) => getBasePrice(b) - getBasePrice(a));
+        break;
+      case 'name-asc':
+        sorted.sort((a, b) => getItemName(a).localeCompare(getItemName(b)));
+        break;
+      default:
+        sorted.sort((a, b) => {
+          if (a.popular && !b.popular) return -1;
+          if (!a.popular && b.popular) return 1;
+          return 0;
+        });
+    }
+
+    return sorted;
+  }, [activeCategory, itemsByCategory, search, fastingOnly, sort, getItemName, getItemDesc]);
 
   const selectCategory = (id) => {
     setActiveCategory(id);
     if (onSearchChange) onSearchChange('');
+    setSort('default');
   };
+
+  const scrollCategories = (amt) => {
+    categoryScrollRef.current?.scrollBy({ left: amt, behavior: 'smooth' });
+  };
+
+  const SORT_OPTIONS = [
+    { id: 'default',    label: t('sort_popular'),    icon: 'fa-star' },
+    { id: 'price-asc',  label: t('sort_price_low'),  icon: 'fa-arrow-up' },
+    { id: 'price-desc', label: t('sort_price_high'), icon: 'fa-arrow-down' },
+    { id: 'name-asc',   label: t('sort_name'),       icon: 'fa-font' },
+  ];
+
+  const currentSortLabel = SORT_OPTIONS.find((o) => o.id === sort)?.label || t('sort_popular');
 
   if (loading) return <MenuSkeleton />;
   if (error) return (
-    <div className="flex flex-col items-center justify-center p-10 text-red-500">
-      <i className="fa-solid fa-circle-exclamation text-4xl mb-3" />
-      <p className="font-bold">Failed to load menu</p>
-      <p className="text-xs text-gray-400 mt-1">{error}</p>
+    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-error)' }}>
+      <i className="fa-solid fa-circle-exclamation" style={{ fontSize: 32, marginBottom: 12 }} />
+      <p style={{ marginBottom: 12 }}>Failed to load menu</p>
+      <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{error}</p>
     </div>
   );
 
   return (
-    <div className="w-full flex-1 overflow-y-auto hide-scrollbar px-5 pb-32 pt-2 z-10 relative">
-      
-      {/* Typography Hero Header */}
-      <div className="mb-6">
-        <p className="text-gray-300 text-sm font-medium mb-1">Hi, Foodie 👋</p>
-        <h1 className="text-4xl font-black text-white leading-tight tracking-tight">
-          Good Food<br />
-          Good <span className="text-orange-500">Mood!</span>
-        </h1>
-      </div>
+    <div className="app-view">
+      <h1 className="display-title" style={{ marginTop: '4px' }}>
+        <span>{t('explore')}</span>{' '}<br />
+        <span style={{ color: 'var(--color-primary)' }}>{t('delicious_menu')}</span>
+      </h1>
 
-      {/* Category Horizontal Row */}
-      <div className="mb-8">
-        <div 
-          className="flex overflow-x-auto gap-4 py-2 hide-scrollbar snap-x"
-          ref={categoryScrollRef}
-        >
-          <div
-            className={`snap-start flex flex-col items-center justify-center min-w-[72px] h-[90px] rounded-[24px] cursor-pointer transition-all duration-300 flex-shrink-0 ${
-              activeCategory === 'all' 
-                ? 'bg-orange-500/20 border border-orange-500/80 shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
-                : 'glass-card border-transparent'
-            }`}
-            onClick={() => selectCategory('all')}
-          >
-            <div className="w-10 h-10 mb-1 rounded-full bg-white/10 flex items-center justify-center text-lg">🍔</div>
-            <span className={`text-[11px] font-bold ${activeCategory === 'all' ? 'text-white' : 'text-gray-400'}`}>
+      {/* Category scroll bar */}
+      <div className="category-scroll-wrapper">
+        <button className="scroll-arrow" onClick={() => scrollCategories(-120)} aria-label="Scroll left">
+          <i className="fa-solid fa-chevron-left" />
+        </button>
+        <div className="category-scroll-container" ref={categoryScrollRef} id="category-scroll-container">
+          <div className="category-scroll" id="categories-bar">
+            <div
+              className={`cat-pill ${activeCategory === 'all' ? 'active' : ''}`}
+              onClick={() => selectCategory('all')}
+              role="button"
+              tabIndex={0}
+            >
               All
-            </span>
-          </div>
-
-          {categories
-            .filter((cat) => !cat.name?.toLowerCase().includes('fasting') && !cat.name_am?.includes('ጾም'))
-            .map((cat) => {
-              const isActive = cat.id === activeCategory;
-              // Mock icons based on name
-              let icon = '🍕';
-              if (cat.name?.toLowerCase().includes('burger')) icon = '🍔';
-              if (cat.name?.toLowerCase().includes('chicken')) icon = '🍗';
-              if (cat.name?.toLowerCase().includes('drink')) icon = '🥤';
-              if (cat.name?.toLowerCase().includes('fries')) icon = '🍟';
-              if (cat.name?.toLowerCase().includes('salad')) icon = '🥗';
-              
-              return (
+            </div>
+            {categories
+              .filter((cat) => !cat.name?.toLowerCase().includes('fasting') && !cat.name_am?.includes('ጾም'))
+              .map((cat) => (
                 <div
                   key={cat.id}
-                  className={`snap-start flex flex-col items-center justify-center min-w-[72px] h-[90px] rounded-[24px] cursor-pointer transition-all duration-300 flex-shrink-0 ${
-                    isActive 
-                      ? 'bg-orange-500/20 border border-orange-500/80 shadow-[0_0_15px_rgba(249,115,22,0.3)]' 
-                      : 'glass-card border-transparent'
-                  }`}
+                  className={`cat-pill ${cat.id === activeCategory ? 'active' : ''}`}
                   onClick={() => selectCategory(cat.id)}
+                  role="button"
+                  tabIndex={0}
                 >
-                  <div className="w-10 h-10 mb-1 rounded-full bg-white/10 flex items-center justify-center text-lg">{icon}</div>
-                  <span className={`text-[11px] font-bold ${isActive ? 'text-white' : 'text-gray-400'}`}>
-                    {getCatName(cat)}
-                  </span>
+                  {getCatName(cat)}
                 </div>
-              );
-          })}
+              ))}
+          </div>
+        </div>
+        <button className="scroll-arrow" onClick={() => scrollCategories(120)} aria-label="Scroll right">
+          <i className="fa-solid fa-chevron-right" />
+        </button>
+      </div>
+
+      {/* Section header + sort */}
+      <div className="section-header">
+        <h2 id="current-category-title">
+          {search.trim() ? `Results for "${search}"` : (activeCategory === 'all' ? 'All Items' : (activeCat ? getCatName(activeCat) : ''))}
+        </h2>
+        <div className="sort-wrapper" id="sort-wrapper">
+          <button
+            className={`sort-btn ${showSortDropdown ? 'open' : ''}`}
+            id="sort-btn"
+            onClick={() => setShowSortDropdown((s) => !s)}
+            aria-haspopup="listbox"
+          >
+            <i className="fa-solid fa-arrow-up-wide-short" />
+            <span id="sort-label">{currentSortLabel}</span>
+            <i className="fa-solid fa-chevron-down" />
+          </button>
+
+          {showSortDropdown && (
+            <div className="sort-dropdown show" id="sort-dropdown" role="listbox">
+              {SORT_OPTIONS.map((opt) => (
+                <div
+                  key={opt.id}
+                  className={`sort-option ${sort === opt.id ? 'selected' : ''}`}
+                  data-sort={opt.id}
+                  onClick={() => { setSort(opt.id); setShowSortDropdown(false); }}
+                  role="option"
+                  aria-selected={sort === opt.id}
+                >
+                  <i className={`fa-solid ${opt.icon}`} /> {opt.label}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Hero Banner (Mocked) */}
-      {activeCategory === 'all' && !search && (
-        <div className="w-full glass-panel rounded-[32px] p-5 mb-8 relative overflow-hidden flex items-center justify-between">
-          <div className="z-10 w-3/5">
-            <div className="text-orange-500 text-xs font-bold mb-1 flex items-center gap-1">
-              <i className="fa-solid fa-fire text-orange-500"></i> Limited Time Offer
-            </div>
-            <h2 className="text-2xl font-black text-white leading-tight mb-3">
-              Spicy Burger<br/><span className="text-gray-300">Combo</span>
-            </h2>
-            <button className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold py-2 px-5 rounded-full shadow-[0_4px_15px_rgba(249,115,22,0.4)] transition-all">
-              Order Now
-            </button>
-          </div>
-          <div className="absolute right-[-20px] top-1/2 -translate-y-1/2 w-[160px] h-[160px]">
-             <img src="/pizza-placeholder.jpg" alt="Combo" className="w-full h-full object-cover rounded-full" />
-             <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md rounded-full w-12 h-12 flex flex-col items-center justify-center border border-white/20">
-                <span className="text-white text-xs font-bold leading-none">20%</span>
-                <span className="text-gray-300 text-[9px] leading-none">OFF</span>
-             </div>
-          </div>
-        </div>
+      {/* Click outside to close sort dropdown */}
+      {showSortDropdown && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 50 }}
+          onClick={() => setShowSortDropdown(false)}
+        />
       )}
 
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-white text-lg font-bold">
-          {search.trim() ? `Results for "${search}"` : 'Popular Now'}
-        </h2>
-        {!search && <span className="text-gray-400 text-xs cursor-pointer hover:text-white transition-colors">View All</span>}
-      </div>
-
-      {/* Product Grid */}
+      {/* Product grid */}
       {displayItems.length === 0 ? (
-        <div className="text-center p-10 text-gray-400">
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-muted)' }}>
           {t('no_items')}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="product-grid" id="products-target-grid">
           {displayItems.map((item) => (
             <ProductCard
               key={item.id}
               item={item}
+              ratingsMap={ratingsMap}
               onOpen={setModalItem}
               getItemName={getItemName}
+              getItemDesc={getItemDesc}
+              t={t}
             />
           ))}
         </div>
@@ -183,18 +220,15 @@ export default function MenuView({ onNavigate, search = '', onSearchChange }) {
 
       {/* Floating tray button */}
       {cartCount > 0 && (
-        <div className="fixed bottom-24 right-5 z-[90]">
-          <button
-            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-5 py-3 shadow-[0_8px_25px_rgba(249,115,22,0.5)] flex items-center gap-3 transition-transform hover:scale-105 border border-white/20"
-            onClick={() => onNavigate('cart')}
-          >
-            <i className="fa-solid fa-basket-shopping text-lg" />
-            <span className="font-bold text-sm uppercase tracking-wide">{t('view_tray')}</span>
-            <span className="bg-white text-orange-500 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black">
-              {cartCount}
-            </span>
-          </button>
-        </div>
+        <button
+          className="floating-tray-btn visible"
+          id="floating-tray-btn"
+          onClick={() => onNavigate('cart')}
+        >
+          <i className="fa-solid fa-basket-shopping" />
+          <span>{t('view_tray')}</span>
+          <span className="floating-badge" id="floating-badge-count">{cartCount}</span>
+        </button>
       )}
 
       {/* Product modal */}
@@ -209,15 +243,20 @@ export default function MenuView({ onNavigate, search = '', onSearchChange }) {
 // ──────────────────────────────────────────────
 // ProductCard
 // ──────────────────────────────────────────────
-function ProductCard({ item, onOpen, getItemName }) {
+function ProductCard({ item, ratingsMap = {}, onOpen, getItemName, getItemDesc, t }) {
   const { addToCart, showToast } = useApp();
 
   const isSoldOut = item.inventory_status === 'sold-out';
+  const isLimited = item.inventory_status === 'limited';
   const dietIcons = getDietaryIcons(item.dietary_tags || []);
 
   const displayPrice = item.item_type === 'pizza'
-    ? item.prices_json?.medium || item.base_price || item.price || 0
-    : item.base_price || item.price || 0;
+    ? `Br ${item.prices_json?.medium || item.base_price || item.price || 0}`
+    : `Br ${item.base_price || item.price || 0}`;
+
+  const ratingInfo = (ratingsMap && (ratingsMap[item.id] || ratingsMap[item.name]));
+  const hasRatings = ratingInfo && ratingInfo.count > 0;
+  const avgRating = hasRatings ? (ratingInfo.sum / ratingInfo.count).toFixed(1) : null;
 
   const hasSizes = !!item.prices_json && Object.keys(item.prices_json).length > 0;
   const isPizza = item.item_type === 'pizza';
@@ -228,8 +267,10 @@ function ProductCard({ item, onOpen, getItemName }) {
     if (isSoldOut) return;
 
     if (hasOptions) {
+      // Items with options (sizes/crusts) open the detail modal
       onOpen(item);
     } else {
+      // Items with no customizable options add directly to tray
       const unitPrice = item.base_price || item.price || 0;
       const cartId = `${item.id}-flat-${Date.now()}`;
 
@@ -254,53 +295,73 @@ function ProductCard({ item, onOpen, getItemName }) {
 
   return (
     <div
-      className={`glass-card rounded-[28px] p-3 flex flex-col relative overflow-hidden group ${isSoldOut ? 'opacity-50 grayscale pointer-events-none' : ''}`}
+      className={`product-card ${isSoldOut ? 'sold-out' : ''}`}
+      id={`card-${item.id}`}
       onClick={!isSoldOut ? () => onOpen(item) : undefined}
+      role={isSoldOut ? undefined : 'button'}
+      tabIndex={isSoldOut ? undefined : 0}
     >
-      {/* Top badges (Dietary / Heart) */}
-      <div className="absolute top-4 left-4 z-10 flex gap-1">
-        {dietIcons && dietIcons.length > 0 && dietIcons.map((icon, i) => (
-          <div key={i} className="w-6 h-6 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-[10px] border border-white/10">
-            {icon}
+      <div className="img-wrapper">
+        {item.popular && <div className="product-badge">{t('popular')}</div>}
+        {isSoldOut && <div className="inventory-badge badge-sold-out">{t('sold_out')}</div>}
+        {isLimited && <div className="inventory-badge badge-limited">{t('limited')}</div>}
+        {dietIcons && dietIcons.length > 0 && (
+          <div className="dietary-badges">
+            {dietIcons.map((icon, i) => (
+              <div key={i} className="dietary-icon">{icon}</div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="absolute top-4 right-4 z-10 text-red-500 opacity-60 group-hover:opacity-100 transition-opacity">
-        <i className="fa-solid fa-heart text-sm"></i>
-      </div>
-
-      {/* Image */}
-      <div className="w-full aspect-square mb-2 overflow-hidden rounded-2xl relative">
+        )}
         <img
           src={item.image_url || '/pizza-placeholder.jpg'}
           alt={getItemName(item)}
           loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           onError={(e) => { e.target.src = '/pizza-placeholder.jpg'; }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
       </div>
 
-      {/* Info */}
-      <div className="flex flex-col flex-1 justify-end px-1 pb-2">
-        <h4 className="text-white font-bold text-[13px] leading-tight mb-1 truncate">
-          {getItemName(item)}
-        </h4>
+      <div className="product-info">
+        <h4>{getItemName(item)}</h4>
         
-        <div className="flex justify-between items-end mt-1">
-          <span className="text-gray-300 text-[10px] font-semibold">Br <span className="text-white text-[13px]">{displayPrice}</span></span>
+        {/* Dynamic Rating Badge */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          fontSize: '11px',
+          fontWeight: '600',
+          color: '#F59E0B',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          padding: '2px 6px',
+          borderRadius: '4px',
+          marginBottom: '4px'
+        }}>
+          {hasRatings ? (
+            <>
+              <span>⭐ {avgRating}/5</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '10px' }}>({ratingInfo.count})</span>
+            </>
+          ) : (
+            <span>⭐ New</span>
+          )}
+        </div>
+
+        <p>{getItemDesc(item)}</p>
+
+        <div className="product-price-row">
+          <span className="product-price">{displayPrice}</span>
+          {isSoldOut ? (
+            <span style={{ color: '#EF4444', fontSize: '10px' }}>N/A</span>
+          ) : (
+            <i
+              className="fa-solid fa-circle-plus add-icon-btn"
+              onClick={handlePlusClick}
+              title={hasOptions ? "Select options" : "Add to tray"}
+              role="button"
+            />
+          )}
         </div>
       </div>
-
-      {/* Add Button */}
-      {!isSoldOut && (
-        <button 
-          className="absolute bottom-0 right-0 bg-orange-500 hover:bg-orange-600 text-white w-[42px] h-[42px] flex items-center justify-center rounded-tl-[20px] rounded-br-[28px] transition-colors shadow-[-4px_-4px_10px_rgba(0,0,0,0.1)]"
-          onClick={handlePlusClick}
-        >
-          <i className="fa-solid fa-plus text-sm"></i>
-        </button>
-      )}
     </div>
   );
 }
@@ -310,14 +371,17 @@ function ProductCard({ item, onOpen, getItemName }) {
 // ──────────────────────────────────────────────
 function MenuSkeleton() {
   return (
-    <div className="w-full px-5 pt-2 flex flex-col gap-6 animate-pulse z-10 relative">
-      <div className="h-16 w-3/4 bg-white/10 rounded-xl"></div>
-      <div className="flex gap-4">
-        {[1, 2, 3, 4].map(i => <div key={i} className="h-[90px] min-w-[72px] rounded-[24px] bg-white/10"></div>)}
+    <div className="app-view">
+      <div className="loading-skeleton" style={{ height: 40, marginBottom: 12, borderRadius: 8 }} />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="loading-skeleton" style={{ height: 34, width: 80, borderRadius: 20, flexShrink: 0 }} />
+        ))}
       </div>
-      <div className="h-32 w-full bg-white/10 rounded-[32px]"></div>
-      <div className="grid grid-cols-2 gap-4">
-        {[1, 2, 3, 4].map(i => <div key={i} className="h-48 rounded-[28px] bg-white/10"></div>)}
+      <div className="product-grid">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="loading-skeleton" style={{ height: 200, borderRadius: 14 }} />
+        ))}
       </div>
     </div>
   );

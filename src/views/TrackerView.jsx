@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { supabase } from '../supabaseClient';
 import { PAYMENT_ACCOUNTS } from '../utils/constants';
 import RatingModal from '../components/RatingModal';
+import PaymentModal from '../components/PaymentModal';
 
 const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
 
@@ -158,6 +159,8 @@ export default function TrackerView({ onNavigate }) {
 // ──────────────────────────────────────────────
 function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const { showToast } = useApp();
+  const [selectedPayment, setSelectedPayment] = useState('telebirr');
+  const [paymentModal, setPaymentModal] = useState(false);
 
   const status = order?.status || 'received';
   const isRejected = status === 'rejected' || status === 'cancelled';
@@ -192,6 +195,18 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
     } catch (err) {
       console.error('Cancel order error:', err);
       showToast(`Failed to cancel order: ${err.message}`, 'var(--color-error)');
+    }
+  };
+
+  const handleCashCheckout = async () => {
+    try {
+      await supabase
+        .from('orders')
+        .update({ payment_method: 'cash', payment_status: 'unpaid' })
+        .eq('id', order.id);
+      onRefresh();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -314,7 +329,57 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         </div>
       </div>
 
-      {/* Removed Payment Selection Block */}
+      {/* Payment Selection & Pay Button (When Unpaid or Rejected) */}
+      {(isUnpaid || isRejectedPayment) && (
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)' }}>
+          {isRejectedPayment && (
+            <div style={{ marginBottom: 12, padding: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8 }}>
+              <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                <i className="fa-solid fa-triangle-exclamation" /> Payment Verification Failed
+              </div>
+              <div style={{ color: '#ffcdcd', fontSize: 13 }}>
+                {rejectionReason || 'Your uploaded receipt could not be verified.'}
+              </div>
+              <div style={{ color: '#ccc', fontSize: 12, marginTop: 4 }}>
+                Please check your transaction details and retry.
+              </div>
+            </div>
+          )}
+          <h4 style={{ color: '#fff', marginBottom: 10, fontSize: 14 }}>{t('payment_method')}</h4>
+
+          <div className="payment-shortcuts" style={{ marginBottom: 12 }}>
+            {[
+              { id: 'telebirr', label: 'Telebirr', icon: 'fa-mobile-screen' },
+              { id: 'cbe',      label: 'CBE Birr', icon: 'fa-building-columns' },
+              { id: 'chapa',    label: 'Chapa',    icon: 'fa-globe' },
+              { id: 'cash',     label: t('cash'),  icon: 'fa-money-bill' },
+            ].map(({ id, label, icon }) => (
+              <button
+                key={id}
+                className={`payment-btn ${selectedPayment === id ? 'selected' : ''}`}
+                onClick={() => setSelectedPayment(id)}
+                style={{ flex: '1 1 45%', padding: '8px', fontSize: 12 }}
+              >
+                <i className={`fa-solid ${icon}`} style={{ marginBottom: 2 }} />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="btn-primary"
+            onClick={() => {
+              if (selectedPayment === 'cash') {
+                handleCashCheckout();
+              } else {
+                setPaymentModal(true);
+              }
+            }}
+          >
+            <i className="fa-solid fa-credit-card" /> Pay Bill (Br {parseFloat(order.total_price).toFixed(2)})
+          </button>
+        </div>
+      )}
 
       {/* Post-Payment Rating Prompt / Button (When Paid) */}
       {isPaid && (
@@ -366,7 +431,15 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         )}
       </div>
 
-      {/* Removed PaymentModal UI */}
+      {/* Payment Modal Component */}
+      {paymentModal && (
+        <PaymentModal
+          order={order}
+          paymentMethod={selectedPayment}
+          onClose={() => setPaymentModal(false)}
+          onSuccess={onRefresh}
+        />
+      )}
     </div>
   );
 }
