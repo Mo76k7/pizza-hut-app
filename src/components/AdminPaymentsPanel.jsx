@@ -92,7 +92,7 @@ export default function AdminPaymentsPanel() {
 
       const { error: orderErr } = await supabase
         .from('orders')
-        .update({ payment_status: 'approved' })
+        .update({ payment_status: 'paid' })
         .eq('id', proof.order_id);
       if (orderErr) throw orderErr;
 
@@ -118,7 +118,7 @@ export default function AdminPaymentsPanel() {
 
       const { error: orderErr } = await supabase
         .from('orders')
-        .update({ payment_status: 'rejected' })
+        .update({ payment_status: 'unpaid' })
         .eq('id', rejectingProof.order_id);
       if (orderErr) throw orderErr;
 
@@ -142,7 +142,7 @@ export default function AdminPaymentsPanel() {
 
   if (loading && proofs.length === 0) return <div style={{ padding: 20 }}>Loading payments...</div>;
 
-  const pendingProofs = proofs.filter(p => p.status === 'pending_admin');
+  const pendingProofs = proofs.filter(p => p.status === 'pending');
   
   let historyProofs = proofs.filter(p => p.status === 'approved' || p.status === 'rejected');
   
@@ -218,12 +218,12 @@ export default function AdminPaymentsPanel() {
             {/* Uploaded Receipt */}
             <div style={{ flex: 1, minWidth: 240, background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8 }}>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>UPLOADED RECEIPT</div>
-              {proof.screenshot_url ? (
+              {proof.receipt_url ? (
                 <div 
-                  onClick={() => setZoomImage(proof.screenshot_url)}
+                  onClick={() => setZoomImage(proof.receipt_url)}
                   style={{ cursor: 'zoom-in', display: 'block', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, overflow: 'hidden' }}
                 >
-                  <img src={proof.screenshot_url} alt="Receipt" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
+                  <img src={proof.receipt_url} alt="Receipt" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
                 </div>
               ) : (
                 <div style={{ color: '#666', fontSize: 13, fontStyle: 'italic', padding: 20, textAlign: 'center' }}>No image uploaded</div>
@@ -453,12 +453,12 @@ export default function AdminPaymentsPanel() {
               {/* Receipt */}
               <div style={{ background: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8 }}>
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>UPLOADED RECEIPT</div>
-                {auditProof.screenshot_url ? (
+                {auditProof.receipt_url ? (
                   <div 
-                    onClick={() => setZoomImage(auditProof.screenshot_url)}
+                    onClick={() => setZoomImage(auditProof.receipt_url)}
                     style={{ cursor: 'zoom-in', display: 'block', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, overflow: 'hidden' }}
                   >
-                    <img src={auditProof.screenshot_url} alt="Receipt" style={{ width: '100%', maxHeight: 250, objectFit: 'contain', display: 'block', backgroundColor: '#000' }} />
+                    <img src={auditProof.receipt_url} alt="Receipt" style={{ width: '100%', maxHeight: 250, objectFit: 'contain', display: 'block', backgroundColor: '#000' }} />
                   </div>
                 ) : (
                   <div style={{ color: '#666', fontSize: 13, fontStyle: 'italic', padding: 20, textAlign: 'center' }}>No image uploaded</div>

@@ -272,17 +272,27 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         const fileExt = receiptFile.name.split('.').pop();
         const fileName = `${order.id}-${Date.now()}.${fileExt}`;
         
-        const { error: uploadError } = await supabase.storage
-          .from('payment_proofs')
-          .upload(`receipts/${fileName}`, receiptFile, { cacheControl: '3600', upsert: false });
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from('payment_proofs')
+            .upload(`receipts/${fileName}`, receiptFile, { cacheControl: '3600', upsert: false });
 
-        if (uploadError) throw uploadError;
+          if (uploadError) throw uploadError;
 
-        const { data: publicUrlData } = supabase.storage
-          .from('payment_proofs')
-          .getPublicUrl(`receipts/${fileName}`);
-          
-        receiptUrl = publicUrlData.publicUrl;
+          const { data: publicUrlData } = supabase.storage
+            .from('payment_proofs')
+            .getPublicUrl(`receipts/${fileName}`);
+            
+          receiptUrl = publicUrlData.publicUrl;
+        } catch (storageErr) {
+          console.warn("Storage upload failed, falling back to base64", storageErr);
+          receiptUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(receiptFile);
+          });
+        }
 
         // Perform OCR
         try {
