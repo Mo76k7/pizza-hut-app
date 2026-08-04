@@ -125,7 +125,6 @@ export const TRANSLATIONS = {
 export const PAYMENT_ACCOUNTS = {
   telebirr: { number: '093 400 9937', name: 'MUAZ' },
   cbe:      { number: '1000739055718', name: 'Umer' },
-  chapa:    { number: '0989',       name: 'Pizza Hut Chapa' },
   cash:     { number: 'Pay to Waiter', name: 'Cash Payment at Table' },
 };
 

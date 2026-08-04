@@ -21,6 +21,7 @@ export default function CustomerApp({ onRoleSwitch, currentRole }) {
   const [currentView, setCurrentView] = useState(activeOrderId ? 'tracker' : 'home');
 
   // Utility bar state — lifted here so it renders outside view-container
+  const [search, setSearch] = useState('');
   const [fastingOnly, setFastingOnly] = useState(false);
 
   const handleNavigate = (view) => {
@@ -50,7 +51,27 @@ export default function CustomerApp({ onRoleSwitch, currentRole }) {
       {/* 2. Utility bar — only on menu view, sits between header and content */}
       {currentView === 'home' && (
         <div className="utility-bar" id="utility-bar">
-
+          <div className="search-container">
+            <i
+              className="fa-solid fa-search"
+              style={{
+                position: 'absolute', left: 12, top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--color-text-muted)',
+                fontSize: 'clamp(10px,2.5vw,12px)',
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="text"
+              className="search-input"
+              id="menu-search"
+              placeholder={t('search_placeholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search menu"
+            />
+          </div>
           <div
             className="fasting-toggle-container"
             onClick={() => handleFastingToggle(!fastingOnly)}
@@ -77,6 +98,8 @@ export default function CustomerApp({ onRoleSwitch, currentRole }) {
         {currentView === 'home' && (
           <MenuView
             onNavigate={handleNavigate}
+            search={search}
+            onSearchChange={setSearch}
             fastingOnly={fastingOnly}
             onFastingToggle={handleFastingToggle}
           />
