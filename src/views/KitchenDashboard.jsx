@@ -104,16 +104,9 @@ export default function KitchenDashboard() {
 
 function OrderCard({ order, onUpdateStatus, onUpdatePaymentStatus, setZoomImage, lang }) {
   // Determine status display info
-  const statusClass = 
-    order.status === 'received' ? 'pending' : 
-    order.status === 'preparing' ? 'preparing' : 
-    'ready';
+  const statusClass = order.status === 'received' ? 'pending' : 'ready';
   
-  const statusLabel = 
-    order.status === 'received' ? '⏳ Pending' : 
-    order.status === 'accepted' ? '✅ Accepted' : 
-    order.status === 'preparing' ? '🔨 Preparing' : 
-    '✅ Ready';
+  const statusLabel = order.status === 'received' ? '⏳ Order Received' : '✅ Ready';
 
   // Format order items
   const itemsList = (order.order_items || []).map((it) => {
@@ -195,16 +188,8 @@ function OrderCard({ order, onUpdateStatus, onUpdatePaymentStatus, setZoomImage,
       
       <div className="order-actions">
         {order.status === 'received' ? (
-          <button className="btn-accept" onClick={() => onUpdateStatus(order.id, 'accepted')}>
-            Accept
-          </button>
-        ) : order.status === 'accepted' ? (
-          <button className="btn-prepare" onClick={() => onUpdateStatus(order.id, 'preparing')}>
-            Preparing
-          </button>
-        ) : order.status === 'preparing' ? (
           <button className="btn-ready" onClick={() => onUpdateStatus(order.id, 'ready')}>
-            Ready
+            Mark as Ready
           </button>
         ) : (
           <button className="btn-secondary" style={{ marginTop: 0 }} onClick={() => onUpdateStatus(order.id, 'completed')}>

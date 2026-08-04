@@ -6,7 +6,7 @@ import RatingModal from '../components/RatingModal';
 import PaymentModal from '../components/PaymentModal';
 import Tesseract from 'tesseract.js';
 
-const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
+const STATUS_STEPS = ['received', 'ready'];
 
 const STATUS_META = {
   received:  { icon: 'fa-clock',          color: 'var(--color-warning)',  pulse: true  },
@@ -415,21 +415,10 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         </div>
       )}
 
-      {/* Pulse ring with status icon */}
-      <div className="pulse-ring" style={{ borderColor: meta.color, background: `${meta.color}22` }}>
-        <i className={`fa-solid ${meta.icon}`} style={{ fontSize: 26, color: meta.color }} />
-      </div>
-
       {/* Order Status Title */}
-      <h3 style={{ fontSize: 'clamp(17px,4vw,20px)', marginBottom: 4, color: '#FFF', textAlign: 'center' }}>
+      <h3 style={{ fontSize: 'clamp(17px,4vw,20px)', marginBottom: 16, color: '#FFF', textAlign: 'center' }}>
         {isRejected ? t('status_rejected') : t(`status_${status}`)}
       </h3>
-
-      {!isRejected && status !== 'completed' && (
-        <p style={{ fontSize: 12, color: 'var(--color-accent)', marginBottom: 16, fontWeight: 600, textAlign: 'center' }}>
-          ⏱ {t('est_time')}
-        </p>
-      )}
 
       {/* Timeline Steps */}
       <div className="timeline">
