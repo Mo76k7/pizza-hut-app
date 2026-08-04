@@ -118,7 +118,7 @@ export default function AdminPaymentsPanel() {
 
       const { error: orderErr } = await supabase
         .from('orders')
-        .update({ payment_status: 'unpaid' })
+        .update({ payment_status: 'rejected' })
         .eq('id', rejectingProof.order_id);
       if (orderErr) throw orderErr;
 

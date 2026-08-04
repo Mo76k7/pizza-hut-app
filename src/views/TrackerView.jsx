@@ -534,14 +534,37 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           {isRejectedPayment && (
             <div style={{ marginBottom: 12, padding: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8 }}>
               <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                <i className="fa-solid fa-triangle-exclamation" /> Payment Verification Failed
+                <i className="fa-solid fa-triangle-exclamation" /> ❌ Payment Rejected
               </div>
               <div style={{ color: '#ffcdcd', fontSize: 13 }}>
                 {rejectionReason || 'Your uploaded receipt could not be verified.'}
               </div>
-              <div style={{ color: '#ccc', fontSize: 12, marginTop: 4 }}>
+              <div style={{ color: '#ccc', fontSize: 12, marginTop: 4, marginBottom: 10 }}>
                 Please check your transaction details and retry.
               </div>
+              <button 
+                className="btn-secondary"
+                style={{ 
+                  margin: 0, 
+                  backgroundColor: 'rgba(239, 68, 68, 0.2)', 
+                  border: '1px solid #ef4444', 
+                  color: '#fff', 
+                  padding: '6px 12px', 
+                  fontSize: 13,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+                onClick={() => {
+                  setTxId('');
+                  setReceiptFile(null);
+                  setReceiptPreview(null);
+                  setPaymentError(null);
+                  setIsPaymentModalOpen(true);
+                }}
+              >
+                <i className="fa-solid fa-rotate-right" /> Retry Payment
+              </button>
             </div>
           )}
           <h4 style={{ color: '#fff', marginBottom: 10, fontSize: 14 }}>{t('payment_method')}</h4>
