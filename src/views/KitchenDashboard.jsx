@@ -157,16 +157,23 @@ function OrderCard({ order, onUpdateStatus, onUpdatePaymentStatus, setZoomImage,
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 2 }}>Payment Status</div>
-            <select 
-              value={order.payment_status || 'unpaid'} 
-              onChange={(e) => onUpdatePaymentStatus(order.id, e.target.value)}
-              style={{ backgroundColor: '#0f0f17', color: '#fff', border: '1px solid var(--glass-border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}
-            >
-              <option value="unpaid">🔴 Unpaid</option>
-              <option value="pending_verification">🟡 Pending Verification</option>
-              <option value="approved">🟢 Paid / Verified</option>
-              <option value="rejected">❌ Rejected</option>
-            </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <select 
+                value={order.payment_status || 'unpaid'} 
+                onChange={(e) => onUpdatePaymentStatus(order.id, e.target.value)}
+                style={{ backgroundColor: '#0f0f17', color: '#fff', border: '1px solid var(--glass-border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}
+              >
+                <option value="unpaid">🔴 Unpaid</option>
+                <option value="pending_verification">🟡 Pending Verification</option>
+                <option value="approved">🟢 Paid / Verified</option>
+                <option value="rejected">❌ Rejected</option>
+              </select>
+              {order.payment_status === 'approved' && order.payment_proofs?.[0]?.ocr_amount && (
+                <span style={{ fontSize: 10, color: '#22c55e', fontWeight: 700, backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '2px 6px', borderRadius: 4, alignSelf: 'flex-start' }}>
+                  Auto-Verified ✅
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

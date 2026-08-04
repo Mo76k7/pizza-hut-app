@@ -15,7 +15,7 @@ export function useKitchenOrders() {
       // Fetch orders for this branch that are not completed or rejected
       const { data, error: err } = await supabase
         .from('orders')
-        .select('*, order_items(*), payment_proofs(receipt_url, status)')
+        .select('*, order_items(*), payment_proofs(receipt_url, status, ocr_amount)')
         .eq('branch_location', branch)
         .neq('status', 'completed')
         .neq('status', 'rejected')

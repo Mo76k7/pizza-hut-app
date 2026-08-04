@@ -177,7 +177,7 @@ export default function AdminPaymentsPanel() {
           <div style={{ position: 'absolute', top: 16, right: 16 }}>
             {proof.status === 'approved' ? (
               <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-                Approved
+                {proof.ocr_amount ? 'Auto-Verified ✅' : 'Approved'}
               </span>
             ) : (
               <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>

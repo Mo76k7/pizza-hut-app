@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { PAYMENT_ACCOUNTS } from '../utils/constants';
 import RatingModal from '../components/RatingModal';
 import PaymentModal from '../components/PaymentModal';
+import Tesseract from 'tesseract.js';
 
 const STATUS_STEPS = ['received', 'accepted', 'preparing', 'ready', 'completed'];
 
@@ -244,7 +245,27 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
     setPaymentError(null);
 
     try {
+      // Duplicate Txn ID check
+      if (txId.trim()) {
+        const { data: dupData, error: dupError } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('txn_id', txId.trim())
+          .neq('id', order.id)
+          .limit(1);
+          
+        if (dupError) throw dupError;
+        if (dupData && dupData.length > 0) {
+          setPaymentError('This Transaction ID has already been used.');
+          setIsSubmittingPayment(false);
+          return;
+        }
+      }
+
       let receiptUrl = null;
+      let ocrMatchedAmount = false;
+      let ocrTxnMatched = false;
+
       if (receiptFile) {
         const fileExt = receiptFile.name.split('.').pop();
         const fileName = `${order.id}-${Date.now()}.${fileExt}`;
@@ -260,17 +281,44 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
           .getPublicUrl(`receipts/${fileName}`);
           
         receiptUrl = publicUrlData.publicUrl;
+
+        // Perform OCR
+        try {
+          const { data: { text } } = await Tesseract.recognize(receiptFile, 'eng');
+          const expectedAmount = parseFloat(order.total_price).toFixed(2);
+          const amountWithoutDecimals = Math.floor(order.total_price).toString();
+          
+          if (text.includes(expectedAmount) || text.includes(amountWithoutDecimals)) {
+            ocrMatchedAmount = true;
+          }
+          
+          if (txId.trim() && text.includes(txId.trim())) {
+            ocrTxnMatched = true;
+          } else if (!txId.trim()) {
+            ocrTxnMatched = true; 
+          }
+        } catch (ocrErr) {
+          console.error("OCR failed:", ocrErr);
+        }
       }
+
+      const isAutoVerified = ocrMatchedAmount && ocrTxnMatched;
+      const initialProofStatus = isAutoVerified ? 'approved' : 'pending';
+      const initialOrderStatus = isAutoVerified ? 'approved' : 'pending_verification';
 
       const insertData = {
         order_id: order.id,
         receipt_url: receiptUrl,
-        status: 'pending'
+        status: initialProofStatus
       };
       
-      // Try with transaction_id first if provided
       if (txId.trim()) {
         insertData.transaction_id = txId.trim();
+      }
+
+      if (isAutoVerified) {
+        insertData.ocr_amount = order.total_price;
+        if (txId.trim()) insertData.ocr_txn_id = txId.trim();
       }
 
       const { error: proofError } = await supabase
@@ -288,14 +336,24 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
         }
       }
 
+      const updatePayload = { 
+        payment_status: initialOrderStatus, 
+        payment_method: selectedPayment 
+      };
+      if (txId.trim()) updatePayload.txn_id = txId.trim();
+
       const { error: updateError } = await supabase
         .from('orders')
-        .update({ payment_status: 'pending_verification', payment_method: selectedPayment })
+        .update(updatePayload)
         .eq('id', order.id);
 
       if (updateError) throw updateError;
 
-      showToast('Payment submitted for verification!', 'var(--color-success)');
+      if (isAutoVerified) {
+        showToast('Payment Auto-Verified successfully!', 'var(--color-success)');
+      } else {
+        showToast('Payment submitted for verification!', 'var(--color-success)');
+      }
       onRefresh();
     } catch (err) {
       console.error(err);
