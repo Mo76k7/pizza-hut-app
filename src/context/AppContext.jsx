@@ -100,7 +100,18 @@ export function AppProvider({ children }) {
   const clearCart = useCallback(() => setCart([]), []);
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
-  const cartSubtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  // Audio Toggle
+  const [isAudioEnabled, setIsAudioEnabled] = useState(() => {
+    return localStorage.getItem('audio_enabled') !== 'false';
+  });
+
+  const toggleAudio = useCallback(() => {
+    setIsAudioEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem('audio_enabled', String(next));
+      return next;
+    });
+  }, []);
 
   return (
     <AppContext.Provider value={{
@@ -112,6 +123,7 @@ export function AppProvider({ children }) {
       activeOrderId, setActiveOrderId,
       activeOrderIds, addActiveOrderId, removeActiveOrderId,
       t, getItemName, getItemDesc, getCatName,
+      isAudioEnabled, toggleAudio,
     }}>
       {children}
     </AppContext.Provider>

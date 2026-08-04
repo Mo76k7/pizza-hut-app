@@ -208,7 +208,7 @@ function OrderCard({ order, onUpdateStatus, onUpdatePaymentStatus, setZoomImage,
           </button>
         ) : (
           <button className="btn-secondary" style={{ marginTop: 0 }} onClick={() => onUpdateStatus(order.id, 'completed')}>
-            Mark Completed
+            <i className="fa-solid fa-box-archive" /> Complete & Archive Order
           </button>
         )}
       </div>

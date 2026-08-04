@@ -50,13 +50,22 @@ export function useKitchenOrders() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `branch_location=eq.${branch}` },
         (payload) => {
-          if (payload.new.status === 'cancelled' || payload.new.status === 'rejected') {
-            showToast(`⚠️ CANCELLED: Order #${payload.new.order_number} (Table ${payload.new.table_number}) was cancelled by customer!`, 'var(--color-error)');
-          }
-          setOrders((prev) => 
-            prev.map((o) => (o.id === payload.new.id ? { ...o, ...payload.new } : o))
-                .filter(o => o.status !== 'completed' && o.status !== 'rejected' && o.status !== 'cancelled')
-          );
+          setOrders((prev) => {
+            const existingOrder = prev.find(o => o.id === payload.new.id);
+            if (payload.new.status === 'cancelled' || payload.new.status === 'rejected') {
+              if (existingOrder && existingOrder.status !== payload.new.status) {
+                showToast(`⚠️ CANCELLED: Order #${payload.new.order_number} (Table ${payload.new.table_number}) was cancelled!`, 'var(--color-error)');
+              }
+            }
+            
+            if (payload.new.payment_status === 'pending_verification' && existingOrder && existingOrder.payment_status !== 'pending_verification') {
+              playOrderChime();
+              showToast(`💳 New Payment Proof for Order #${payload.new.order_number}!`, 'var(--color-success)');
+            }
+
+            return prev.map((o) => (o.id === payload.new.id ? { ...o, ...payload.new } : o))
+                .filter(o => o.status !== 'completed' && o.status !== 'rejected' && o.status !== 'cancelled');
+          });
         }
       )
       .subscribe();

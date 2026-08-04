@@ -614,14 +614,23 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
       )}
 
       {/* Post-Payment Rating Prompt / Button (When Paid) */}
+      {/* Post-Payment Rating Prompt / Button (When Paid) */}
       {isPaid && (
-        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div className="paid-actions" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             className="btn-primary"
             style={{ flex: 1, margin: 0, backgroundColor: '#F59E0B', color: '#000', fontWeight: 700 }}
             onClick={onOpenRating}
           >
             <i className="fa-solid fa-star" /> {isRated ? 'Edit Rating & Feedback' : 'Rate Your Meal ⭐'}
+          </button>
+          
+          <button
+            className="btn-secondary"
+            style={{ flex: 1, margin: 0, padding: '10px 14px', backgroundColor: 'rgba(255,255,255,0.1)' }}
+            onClick={() => window.print()}
+          >
+            <i className="fa-solid fa-print" /> Print Receipt
           </button>
 
           {isRated && (

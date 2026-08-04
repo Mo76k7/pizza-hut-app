@@ -5,6 +5,7 @@
 let audioCtx = null;
 
 export function playOrderChime() {
+  if (localStorage.getItem('audio_enabled') === 'false') return;
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;

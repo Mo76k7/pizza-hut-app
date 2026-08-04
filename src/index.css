@@ -2090,3 +2090,44 @@ input:checked + .slider::before {
   border-radius: 50%;
   animation: pulse-ring 2s infinite;
 }
+
+/* ===== PRINTABLE RECEIPT ===== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .app-container { background: white !important; }
+  .tracker-card, .tracker-card * {
+    visibility: visible;
+  }
+  .tracker-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: white !important;
+    border: none !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+  .tracker-card h3, .tracker-card span, .tracker-card p, .tracker-card div {
+    color: black !important;
+  }
+  .pulse-ring, .timeline, button, .paid-actions, .app-header {
+    display: none !important;
+  }
+  .tracker-card::after {
+    content: 'PAID';
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    font-size: 100px;
+    font-weight: bold;
+    color: rgba(34, 197, 94, 0.15) !important;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    pointer-events: none;
+    z-index: -1;
+  }
+}

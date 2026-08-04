@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { BRANCH_OPTIONS } from '../utils/constants';
 
 export default function AppHeader() {
-  const { lang, setLang, branch, setBranch, t } = useApp();
+  const { lang, setLang, branch, setBranch, t, isAudioEnabled, toggleAudio } = useApp();
 
   return (
     <header className="app-header">
@@ -27,7 +27,15 @@ export default function AppHeader() {
       </div>
 
       <div className="header-right">
-
+        {/* Audio Toggle */}
+        <button
+          onClick={toggleAudio}
+          className="lang-toggle"
+          title={isAudioEnabled ? 'Mute Notifications' : 'Unmute Notifications'}
+          style={{ padding: '0 10px', fontSize: 16 }}
+        >
+          <i className={`fa-solid ${isAudioEnabled ? 'fa-bell' : 'fa-bell-slash'}`} style={{ color: isAudioEnabled ? 'var(--color-accent)' : '#666' }} />
+        </button>
         {/* Language toggles */}
         <button
           className={`lang-toggle ${lang === 'en' ? 'active-lang' : ''}`}
