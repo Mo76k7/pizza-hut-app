@@ -25,10 +25,6 @@ export default function CustomerApp({ onRoleSwitch, currentRole }) {
   const [fastingOnly, setFastingOnly] = useState(false);
 
   const handleNavigate = (view) => {
-    if (view === 'tracker' && !activeOrderId) {
-      setCurrentView('home');
-      return;
-    }
     setCurrentView(view);
   };
 
