@@ -49,9 +49,14 @@ export function useMenu() {
 
       // Fetch item ratings safely
       try {
-        const { data: ratingsData } = await supabase
+        let { data: ratingsData, error: ratingsError } = await supabase
           .from('item_ratings')
           .select('menu_item_id, item_name, rating');
+
+        if (ratingsError) {
+          ratingsData = [];
+        }
+
         if (ratingsData && Array.isArray(ratingsData)) {
           const map = {};
           ratingsData.forEach((r) => {
