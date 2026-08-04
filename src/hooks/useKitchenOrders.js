@@ -15,11 +15,10 @@ export function useKitchenOrders() {
       // Fetch orders for this branch that are not completed or rejected
       const { data, error: err } = await supabase
         .from('orders')
-        .select('*, order_items(*)')
+        .select('*, order_items(*), payment_proofs(receipt_url, status)')
         .eq('branch_location', branch)
         .neq('status', 'completed')
         .neq('status', 'rejected')
-        .or('payment_status.in.(paid,approved),payment_method.eq.cash,payment_method.is.null')
         .order('created_at', { ascending: false });
 
       if (err) throw err;
@@ -89,5 +88,25 @@ export function useKitchenOrders() {
     }
   };
 
-  return { orders, loading, error, updateOrderStatus };
+  const updatePaymentStatus = async (orderId, newStatus) => {
+    setOrders((prev) => 
+      prev.map((o) => (o.id === orderId ? { ...o, payment_status: newStatus } : o))
+    );
+
+    try {
+      const { error: err } = await supabase
+        .from('orders')
+        .update({ payment_status: newStatus })
+        .eq('id', orderId);
+      
+      if (err) throw err;
+      showToast('Payment status updated', 'var(--color-success)');
+    } catch (e) {
+      console.error('[useKitchenOrders] payment update error:', e);
+      showToast('Failed to update payment status', 'var(--color-error)');
+      fetchOrders();
+    }
+  };
+
+  return { orders, loading, error, updateOrderStatus, updatePaymentStatus };
 }
