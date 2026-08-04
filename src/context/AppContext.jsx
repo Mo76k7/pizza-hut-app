@@ -100,6 +100,8 @@ export function AppProvider({ children }) {
   const clearCart = useCallback(() => setCart([]), []);
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+  const cartSubtotal = cart.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+
   // Audio Toggle
   const [isAudioEnabled, setIsAudioEnabled] = useState(() => {
     return localStorage.getItem('audio_enabled') !== 'false';
