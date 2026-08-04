@@ -47,38 +47,7 @@ export function useMenu() {
       });
       setItemsByCategory(grouped);
 
-      // Fetch item ratings safely
-      try {
-        let { data: ratingsData, error: ratingsError } = await supabase
-          .from('item_ratings')
-          .select('menu_item_id, item_name, rating');
 
-        if (ratingsError) {
-          ratingsData = [];
-        }
-
-        if (ratingsData && Array.isArray(ratingsData)) {
-          const map = {};
-          ratingsData.forEach((r) => {
-            const itemIdKey = r.menu_item_id;
-            const itemNameKey = r.item_name;
-
-            if (itemIdKey) {
-              if (!map[itemIdKey]) map[itemIdKey] = { sum: 0, count: 0 };
-              map[itemIdKey].sum += Number(r.rating || 0);
-              map[itemIdKey].count += 1;
-            }
-            if (itemNameKey && itemNameKey !== itemIdKey) {
-              if (!map[itemNameKey]) map[itemNameKey] = { sum: 0, count: 0 };
-              map[itemNameKey].sum += Number(r.rating || 0);
-              map[itemNameKey].count += 1;
-            }
-          });
-          setRatingsMap(map);
-        }
-      } catch (rErr) {
-        console.warn('[useMenu] ratings fetch warning:', rErr);
-      }
     } catch (e) {
       console.error('[useMenu]', e);
       setError(e.message || 'Failed to load menu');
