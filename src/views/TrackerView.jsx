@@ -168,6 +168,7 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
   const [paymentError, setPaymentError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [isOrderSummaryExpanded, setIsOrderSummaryExpanded] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const status = order?.status || 'received';
   const isRejected = status === 'rejected' || status === 'cancelled';
@@ -355,6 +356,7 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
       } else {
         showToast('Payment submitted for verification!', 'var(--color-success)');
       }
+      setIsPaymentModalOpen(false);
       onRefresh();
     } catch (err) {
       console.error(err);
@@ -543,8 +545,74 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
             ))}
           </div>
 
-          {/* Inline Digital Payment Details */}
-          {selectedPayment !== 'cash' && accountInfo && (
+          <button
+            className="btn-primary"
+            disabled={isSubmittingPayment}
+            onClick={() => {
+              if (selectedPayment === 'cash') {
+                handleCashCheckout();
+              } else {
+                setIsPaymentModalOpen(true);
+              }
+            }}
+          >
+            {isSubmittingPayment && selectedPayment === 'cash' ? (
+              <><i className="fa-solid fa-spinner fa-spin" /> Submitting...</>
+            ) : (
+              <><i className="fa-solid fa-credit-card" /> Pay Bill (Br {parseFloat(order.total_price).toFixed(2)})</>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Post-Payment Rating Prompt / Button (When Paid) */}
+      {/* Post-Payment Rating Prompt / Button (When Paid) */}
+      {isPaid && (
+        <div className="paid-actions" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn-primary"
+            style={{ flex: 1, margin: 0, backgroundColor: '#F59E0B', color: '#000', fontWeight: 700 }}
+            onClick={onOpenRating}
+          >
+            <i className="fa-solid fa-star" /> {isRated ? 'Edit Rating & Feedback' : 'Rate Your Meal ⭐'}
+          </button>
+          
+          <button
+            className="btn-secondary"
+            style={{ flex: 1, margin: 0, padding: '10px 14px', backgroundColor: 'rgba(255,255,255,0.1)' }}
+            onClick={() => window.print()}
+          >
+            <i className="fa-solid fa-print" /> Print Receipt
+          </button>
+
+          {isRated && (
+            <button
+              className="btn-secondary"
+              style={{ width: 'auto', padding: '10px 14px', margin: 0, backgroundColor: 'rgba(255,255,255,0.1)' }}
+              onClick={onRemoveOrder}
+              title="Clear finished order"
+            >
+              Done
+            </button>
+          )}
+        </div>
+      )}
+      {/* Payment Modal */}
+      {isPaymentModalOpen && selectedPayment !== 'cash' && accountInfo && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setIsPaymentModalOpen(false)}>
+          <div 
+            className="w-full max-w-md bg-[#181824] border-t border-gray-700 sm:border rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl transition-transform transform translate-y-0"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxHeight: '90vh', overflowY: 'auto', position: 'relative' }}
+          >
+            <button 
+              onClick={() => setIsPaymentModalOpen(false)}
+              style={{ position: 'absolute', top: '16px', right: '20px', background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer', zIndex: 10 }}
+            >
+              ✕
+            </button>
+            <h3 style={{ marginTop: 0, marginBottom: 16, color: '#fff', fontSize: 18, textAlign: 'center' }}>Complete Payment</h3>
+            
             <div style={{ backgroundColor: '#0f0f17', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1px solid #28283a' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                 <div>
@@ -600,62 +668,22 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
                 </div>
               )}
             </div>
-          )}
 
-          <button
-            className="btn-primary"
-            disabled={isSubmittingPayment || (selectedPayment !== 'cash' && !txId.trim() && !receiptFile)}
-            onClick={() => {
-              if (selectedPayment === 'cash') {
-                handleCashCheckout();
-              } else {
-                handleSubmitDigitalPayment();
-              }
-            }}
-          >
-            {isSubmittingPayment ? (
-              <><i className="fa-solid fa-spinner fa-spin" /> Submitting...</>
-            ) : selectedPayment === 'cash' ? (
-              <><i className="fa-solid fa-credit-card" /> Pay Bill (Br {parseFloat(order.total_price).toFixed(2)})</>
-            ) : (
-              <><i className="fa-solid fa-cloud-arrow-up" /> Submit Payment for Verification</>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Post-Payment Rating Prompt / Button (When Paid) */}
-      {/* Post-Payment Rating Prompt / Button (When Paid) */}
-      {isPaid && (
-        <div className="paid-actions" style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            className="btn-primary"
-            style={{ flex: 1, margin: 0, backgroundColor: '#F59E0B', color: '#000', fontWeight: 700 }}
-            onClick={onOpenRating}
-          >
-            <i className="fa-solid fa-star" /> {isRated ? 'Edit Rating & Feedback' : 'Rate Your Meal ⭐'}
-          </button>
-          
-          <button
-            className="btn-secondary"
-            style={{ flex: 1, margin: 0, padding: '10px 14px', backgroundColor: 'rgba(255,255,255,0.1)' }}
-            onClick={() => window.print()}
-          >
-            <i className="fa-solid fa-print" /> Print Receipt
-          </button>
-
-          {isRated && (
             <button
-              className="btn-secondary"
-              style={{ width: 'auto', padding: '10px 14px', margin: 0, backgroundColor: 'rgba(255,255,255,0.1)' }}
-              onClick={onRemoveOrder}
-              title="Clear finished order"
+              className="btn-primary"
+              disabled={isSubmittingPayment || (!txId.trim() && !receiptFile)}
+              onClick={handleSubmitDigitalPayment}
             >
-              Done
+              {isSubmittingPayment ? (
+                <><i className="fa-solid fa-spinner fa-spin" /> Submitting...</>
+              ) : (
+                <><i className="fa-solid fa-cloud-arrow-up" /> Submit Payment for Verification</>
+              )}
             </button>
-          )}
+          </div>
         </div>
       )}
+
       {/* Cancel Order Control */}
       <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {isCancelable ? (
