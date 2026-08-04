@@ -17,6 +17,45 @@ const STATUS_META = {
   rejected:  { icon: 'fa-circle-xmark',  color: 'var(--color-error)',   pulse: false },
 };
 
+const compressImage = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 800;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height *= maxDim / width;
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width *= maxDim / height;
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+        resolve(compressedBase64);
+      };
+      img.onerror = reject;
+      img.src = event.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function TrackerView({ onNavigate }) {
   const { activeOrderIds, removeActiveOrderId, t } = useApp();
   const [orders, setOrders] = useState([]);
@@ -269,29 +308,13 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
       let ocrTxnMatched = false;
 
       if (receiptFile) {
-        const fileExt = receiptFile.name.split('.').pop();
-        const fileName = `${order.id}-${Date.now()}.${fileExt}`;
-        
         try {
-          const { error: uploadError } = await supabase.storage
-            .from('payment_proofs')
-            .upload(`receipts/${fileName}`, receiptFile, { cacheControl: '3600', upsert: false });
-
-          if (uploadError) throw uploadError;
-
-          const { data: publicUrlData } = supabase.storage
-            .from('payment_proofs')
-            .getPublicUrl(`receipts/${fileName}`);
-            
-          receiptUrl = publicUrlData.publicUrl;
-        } catch (storageErr) {
-          console.warn("Storage upload failed, falling back to base64", storageErr);
-          receiptUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(receiptFile);
-          });
+          receiptUrl = await compressImage(receiptFile);
+        } catch (err) {
+          console.error("Image compression failed", err);
+          setPaymentError("Failed to process the receipt image. Please try again.");
+          setIsSubmittingPayment(false);
+          return;
         }
 
         // Perform OCR
