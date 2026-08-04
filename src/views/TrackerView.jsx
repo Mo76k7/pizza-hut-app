@@ -359,12 +359,13 @@ function OrderTicketCard({ order, t, onOpenRating, onRemoveOrder, onRefresh }) {
                 onClick={() => setSelectedPayment(id)}
                 style={{
                   width: '100%',
-                  padding: '10px 4px',
-                  fontSize: 13,
+                  padding: '8px 4px',
+                  fontSize: 12,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   borderRadius: '12px',
                   backgroundColor: selectedPayment === id ? 'var(--color-accent, #F59E0B)' : 'rgba(255,255,255,0.05)',
                   color: selectedPayment === id ? '#000' : '#fff',
