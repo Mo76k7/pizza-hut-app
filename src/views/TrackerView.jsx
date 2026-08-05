@@ -97,9 +97,9 @@ export default function TrackerView({ onNavigate }) {
 
   useEffect(() => {
     fetchOrders();
+  }, [fetchOrders]);
 
-    if (!activeOrderIds || activeOrderIds.length === 0) return;
-
+  useEffect(() => {
     const subscription = supabase
       .channel('schema-db-changes')
       .on(
@@ -118,6 +118,8 @@ export default function TrackerView({ onNavigate }) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bank_sms_logs' },
         () => {
+          // Trigger a refresh (note: this might use a stale closure of fetchOrders, 
+          // but order updates are handled instantly above)
           fetchOrders();
         }
       )
@@ -126,7 +128,7 @@ export default function TrackerView({ onNavigate }) {
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, [fetchOrders, activeOrderIds]);
+  }, []);
 
   const handleRatingSubmitted = (orderId) => {
     localStorage.setItem(`rated_order_${orderId}`, 'true');
