@@ -164,14 +164,19 @@ export default function CartView({ onNavigate }) {
           <div className="table-selector-label">
             <i className="fa-solid fa-chair" /> {t('table_number')} <span className="required-star">*</span>
           </div>
-          <input
-            type="text"
+          <select
             id="table-number-input"
-            className={`table-input-field ${tableError ? 'error' : ''}`}
-            placeholder="e.g. 04"
+            className={`table-input-field ${tableError ? 'error' : ''} bg-[#181824] text-white border-gray-700 rounded-lg w-full p-3`}
             value={tableNumber}
             onChange={(e) => { setTableNumber(e.target.value); setTableError(false); }}
-          />
+          >
+            <option value="" disabled>Select Table</option>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+              <option key={num} value={num} className="bg-gray-800 text-white">
+                {num}
+              </option>
+            ))}
+          </select>
         </div>
         {tableError && <div className="field-error-msg show">{t('error_table')}</div>}
 
