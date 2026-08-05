@@ -13,6 +13,7 @@ export default function CartView({ onNavigate }) {
   } = useApp();
 
   const [tableNumber, setTableNumber] = useState('');
+  const [isTableDropdownOpen, setIsTableDropdownOpen] = useState(false);
   const [instructions, setInstructions] = useState('');
   const [splitCount, setSplitCount] = useState(1);
   const [tableError, setTableError] = useState(false);
@@ -164,19 +165,33 @@ export default function CartView({ onNavigate }) {
           <div className="table-selector-label">
             <i className="fa-solid fa-chair" /> {t('table_number')} <span className="required-star">*</span>
           </div>
-          <select
-            id="table-number-input"
-            className={`table-input-field ${tableError ? 'error' : ''} bg-[#181824] text-white border-gray-700 rounded-lg w-full p-3`}
-            value={tableNumber}
-            onChange={(e) => { setTableNumber(e.target.value); setTableError(false); }}
-          >
-            <option value="" disabled>Select Table</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-              <option key={num} value={num} className="bg-gray-800 text-white">
-                {num}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <button
+              id="table-number-input"
+              className={`table-input-field flex justify-between items-center ${tableError ? 'error' : ''} bg-[#181824] text-white border-gray-700 rounded-lg w-full p-3 cursor-pointer`}
+              onClick={() => setIsTableDropdownOpen(!isTableDropdownOpen)}
+            >
+              <span>{tableNumber || 'Select Table'}</span>
+              <span className="text-[10px] opacity-70">▼</span>
+            </button>
+            {isTableDropdownOpen && (
+              <div className="absolute z-50 mt-2 w-full bg-[#1a1a24]/95 backdrop-blur-xl border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden left-0">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                  <div
+                    key={num}
+                    className="px-4 py-3 text-white cursor-pointer hover:bg-white/10 transition-colors text-sm font-semibold"
+                    onClick={() => {
+                      setTableNumber(num);
+                      setTableError(false);
+                      setIsTableDropdownOpen(false);
+                    }}
+                  >
+                    Table {num}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {tableError && <div className="field-error-msg show">{t('error_table')}</div>}
 
