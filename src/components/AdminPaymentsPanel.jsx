@@ -95,7 +95,9 @@ export default function AdminPaymentsPanel() {
         .update({ payment_status: 'paid' })
         .eq('id', proof.order_id);
       if (orderErr) throw orderErr;
-
+      setProofs(prev => prev.map(p => 
+        p.id === proof.id ? { ...p, status: 'approved' } : p
+      ));
       showToast(`Order #${proof.orders?.order_number} approved!`, 'var(--color-success)');
     } catch (err) {
       console.error('Approve error:', err);
@@ -131,6 +133,9 @@ export default function AdminPaymentsPanel() {
           .eq('extracted_txn_id', txnId);
       }
 
+      setProofs(prev => prev.map(p => 
+        p.id === rejectingProof.id ? { ...p, status: 'rejected', rejection_reason: rejectionReason.trim() } : p
+      ));
       showToast(`Payment rejected for Order #${rejectingProof.orders?.order_number}`, 'var(--color-error)');
       setRejectingProof(null);
       setRejectionReason('');
