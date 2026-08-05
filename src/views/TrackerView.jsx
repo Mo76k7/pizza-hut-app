@@ -100,30 +100,31 @@ export default function TrackerView({ onNavigate }) {
 
     if (!activeOrderIds || activeOrderIds.length === 0) return;
 
-    let channel = supabase.channel('orders-realtime-tracker');
-
-    // Subscribe specifically to UPDATE events for each active order ID
-    activeOrderIds.forEach((id) => {
-      channel = channel.on(
+    const subscription = supabase
+      .channel('schema-db-changes')
+      .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` },
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          // Update local state instantly for any active order being tracked
+          setOrders((prevOrders) =>
+            prevOrders.map((order) =>
+              order.id === payload.new.id ? { ...order, ...payload.new } : order
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bank_sms_logs' },
         () => {
           fetchOrders();
         }
-      );
-    });
-
-    // Keep bank_sms_logs subscription
-    channel = channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'bank_sms_logs' },
-      () => {
-        fetchOrders();
-      }
-    ).subscribe();
+      )
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(subscription);
     };
   }, [fetchOrders, activeOrderIds]);
 
