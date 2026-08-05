@@ -1,27 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useApp } from '../context/AppContext';
-import { STUFFED_CRUST_PRICE_MEDIUM, STUFFED_CRUST_PRICE_LARGE } from '../utils/constants';
 
 import { triggerFlyToCartAnimation } from '../utils/animations';
 
 const SIZES = ['small', 'medium', 'large'];
-const CRUSTS = [
-  { id: 'regular', label: 'Regular' },
-  { id: 'thin', label: 'Thin' },
-  { id: 'thick', label: 'Thick' },
-  { id: 'stuffed', label: 'Stuffed (+Br 795)' },
-];
 
-function calcPrice(item, size, crust) {
+function calcPrice(item, size) {
   if (!item) return 0;
   const prices = item.prices_json || {};
-
-  if (item.item_type === 'pizza') {
-    if (crust === 'stuffed') {
-      return size === 'large' ? STUFFED_CRUST_PRICE_LARGE : STUFFED_CRUST_PRICE_MEDIUM;
-    }
-  }
 
   if (prices && typeof prices === 'object' && Object.keys(prices).length > 0) {
     if (prices[size] !== undefined && prices[size] !== null && !isNaN(prices[size])) {
@@ -35,13 +22,11 @@ function calcPrice(item, size, crust) {
 export default function ProductModal({ item, onClose }) {
   const { addToCart, showToast, getItemName, getItemDesc, t } = useApp();
   const [size, setSize] = useState('medium');
-  const [crust, setCrust] = useState('regular');
   const [qty, setQty] = useState(1);
 
   // Reset on new item
   useEffect(() => {
     setSize('medium');
-    setCrust('regular');
     setQty(1);
   }, [item?.id]);
 
@@ -56,15 +41,14 @@ export default function ProductModal({ item, onClose }) {
 
   if (!item) return null;
 
-  const unitPrice = calcPrice(item, size, crust);
+  const unitPrice = calcPrice(item, size);
   const totalPrice = unitPrice * qty;
-  const isPizza = item?.item_type === 'pizza';
   const hasSizes = !!item?.prices_json && typeof item.prices_json === 'object' && Object.keys(item.prices_json).length > 0;
 
   const handleAddToCart = (e) => {
     if (!item) return;
     const cartId = hasSizes
-      ? `${item.id}-${size}-${isPizza ? crust : 'no-crust'}`
+      ? `${item.id}-${size}-no-crust`
       : `${item.id}-flat-${Date.now()}`;
 
     addToCart({
@@ -74,7 +58,6 @@ export default function ProductModal({ item, onClose }) {
       nameEn: item.name,
       nameAm: item.name_am || item.name,
       size: hasSizes ? size : null,
-      crust: isPizza ? crust : null,
       unitPrice,
       quantity: qty,
       imageUrl: item.image_url || null,
@@ -186,38 +169,6 @@ export default function ProductModal({ item, onClose }) {
             {itemDesc}
           </p>
         ) : null}
-
-        {/* Crust options (Pizza only) */}
-        {isPizza && (
-          <div id="crust-options-container" style={{ marginBottom: 14 }}>
-            <div className="options-group-title" style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>
-              {t ? t('crust_type') : 'Crust Type'}
-            </div>
-            <div className="crust-options" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-              {CRUSTS.map(({ id: crustId, label }) => (
-                <div
-                  key={crustId}
-                  className={`crust-btn ${crust === crustId ? 'active' : ''}`}
-                  id={`crust-${crustId}`}
-                  onClick={() => setCrust(crustId)}
-                  role="button"
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    textAlign: 'center',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    backgroundColor: crust === crustId ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
-                    color: crust === crustId ? '#ffffff' : 'rgba(255,255,255,0.8)',
-                    border: crust === crustId ? '1px solid var(--color-primary)' : '1px solid rgba(255,255,255,0.1)',
-                  }}
-                >
-                  {label}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Size options (Any item with sizes) */}
         {hasSizes && (
