@@ -140,6 +140,19 @@ export default function AdminPaymentsPanel() {
     }
   };
 
+  const handleDeletePaymentRecord = async (recordId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this payment record?')) return;
+    try {
+      const { error } = await supabase.from('payment_proofs').delete().eq('id', recordId);
+      if (error) throw error;
+      setProofs(prev => prev.filter(p => p.id !== recordId));
+      showToast('Payment record removed', 'var(--color-success)');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to remove record', 'var(--color-error)');
+    }
+  };
+
   if (loading && proofs.length === 0) return <div style={{ padding: 20 }}>Loading payments...</div>;
 
   const pendingProofs = proofs.filter(p => p.status === 'pending');
@@ -281,9 +294,15 @@ export default function AdminPaymentsPanel() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+          <div className="flex gap-2 mt-2 w-full">
             <button 
-              className="btn-secondary"
+              className="w-1/3 py-2 border border-red-600/50 text-red-500 rounded-lg text-sm font-semibold tracking-wider hover:bg-red-600/10 transition-colors"
+              onClick={() => handleDeletePaymentRecord(proof.id)}
+            >
+              Remove
+            </button>
+            <button 
+              className="btn-secondary flex-1"
               onClick={() => setAuditProof(proof)}
               style={{ margin: 0, padding: '8px 16px', fontSize: 13 }}
             >
