@@ -1,0 +1,5 @@
+[33m4325876[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Update global theme and colors to warm light mode
+[33m4b4f9c0[m Update global theme and colors to warm light mode
+[33m97e966d[m Replace native selects with custom glassmorphism dropdown menus
+[33m98fd44a[m Remove unnecessary payment status dropdown from Kitchen Dashboard
+[33mf39c1fc[m Instantly move approved/rejected payments from pending to history state
